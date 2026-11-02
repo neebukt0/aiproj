@@ -47,6 +47,8 @@ class AuthTests(APITestCase):
 
     def test_logout_blacklists_refresh_token(self):
         refresh = RefreshToken.for_user(self.user)
+        access = refresh.access_token
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(access)}')
         response = self.client.post(
             reverse('logout'),
             {'refresh': str(refresh)},
