@@ -12,7 +12,15 @@
   Если заказ не подтверждён в течение этого времени, место считается свободным
   при проверке и показе зала (фон задачи не требуется).
 
-## 2. Роли и авторизация
+## 2. Текущий стек
+
+- Backend: **FastAPI** (REST API)
+- Frontend: **React**
+- База данных: **MongoDB** (Motor / PyMongo)
+- Auth: JWT — access (15 мин) / refresh (7 дней, blacklist в коллекции `refresh_tokens`)
+- Бан: bcrypt (passlib) + python-jose (HS256)
+
+## 3. Роли и авторизация
 
 | Роль | Права |
 |---|---|
@@ -20,59 +28,43 @@
 | `employee` | Панель: брони на день, смена статуса |
 | `admin` | Управление каталогом и пользователями, отчёт |
 
-- JWT: access — короткий (15 мин, подпись, без БД), refresh — длинный (7 дней, blacklist).
-- Logout: отозвать refresh-токен (SimpleJWT `token_blacklist`).
+- JWT: access — короткий (15 мин, подпись, без БД); refresh — 7 дней, blacklist (коллекция `refresh_tokens`: jti, user_id, revoked, expires_at).
+- Logout: помечать refresh-токен как revoked.
 - Все проверки прав — на backend. Клиент видит и меняет только свои брони
-  (`WHERE id = :id AND user_id = :current_user`); чужая бронь по прямому URL → 404/403.
+  (фильтр по `user_id` текущего пользователя); чужая бронь → 404/403.
 
-## 3. Схема БД — минимум 6 таблиц (только через миграции)
+## 4. Коллекции MongoDB — минимум 6 шардов/коллекций связанных данных
 
-1. `users` — id, email (unique), password_hash, role, created_at, updated_at
-2. `resources` — id, name, resource_type, capacity, image, description, created_at, updated_at
+1. `users` — email, password_hash, role, is_active, created_at, updated_at
+2. `resources` — name, resource_type, capacity, image, description, created_at, updated_at
    (каталог объектов: залы, переговорные, площадки — для мероприятий «конкретное место в зале»)
-3. `bookings` — id, user_id FK→users, resource_id FK→resources, status,
-   start_at, end_at, held_until, created_at, updated_at, confirmed_at, confirmed_by FK→users nullable,
-   cancelled_at, cancel_reason
-4. `status_logs` — id, booking_id FK→bookings, from_status, to_status, changed_by FK→users nullable,
-   changed_at, note (журнал действий: кто, когда, какой статус изменил)
-5. `refresh_tokens` — id, user_id FK→users, jti, revoked, created_at, expires_at (blacklist refresh)
-6. `booking_participants` — id, booking_id FK→bookings, user_id FK→users, created_at
-   (участники/гости, приглашённые на мероприятие)
+3. `bookings` — user_id, resource_id, status, start_at, end_at, held_until, created_at, updated_at, confirmed_at, confirmed_by, cancelled_at, cancel_reason
+4. `status_logs` — booking_id, from_status, to_status, changed_by, changed_at, note (журнал действий)
+5. `refresh_tokens` — jti, user_id, revoked, created_at, expires_at (blacklist refresh)
+6. `booking_participants` — booking_id, user_id, created_at (участники/гости, приглашённые на мероприятие)
 
-Индекс: `bookings(resource_id, start_at)`.
+Индекс: `bookings.resource_id + start_at`.
 
-## 4. Бронирование и защита от двойного бронирования
+## 5. Бронирование и защита от двойного бронирования
 
-- Активные брони: `status IN ('created', 'confirmed')` и срок удержания не истёк (`held_until > now`).
+- Активные брони: `status IN ('created','confirmed')` и `held_until > now`.
 - Пересечение интервалов: `start_at < :new_end AND end_at > :new_start`.
 - Конфликт → `409 Conflict`.
-- Алгоритм: `transaction.atomic()` → `Resource.objects.select_for_update().get(pk=...)` → проверка → INSERT → COMMIT; при конфликте ROLLBACK + 409.
+- В FastAPI проверка выполняется перед вставкой; для конкурентной целостности — атомарная операция/блокировка.
 
-## 5. Статусы брони
+## 6. Статусы брони
 
 - `created -> confirmed, cancelled`
 - `confirmed -> completed, cancelled`
 - `completed`, `cancelled` — терминальны
+- Недопустимый переход → `409`. Статус + запись в журнал — атомарно.
 
-- Недопустимый переход → `409`. Новый статус + запись в журнал — в одной транзакции.
+## 7. API (FastAPI)
 
-## 6. JWT
-
-- Access: 15 мин, проверка подписи без обращения к БД.
-- Refresh: 7 дней, blacklist; `POST /api/auth/refresh` → новый access; logout → revoke.
-
-## 7. API (Django REST)
-
-- `POST /api/auth/register|login|refresh|logout`
-- `GET /api/resources` — поиск, фильтры, пагинация (с сервера)
-- `GET /api/resources/{id}`
-- `POST /api/bookings` — создать бронь
-- `GET /api/bookings/mine` — мои брони (текущие + история)
-- `GET /api/bookings/{id}` — только свои (иначе 404/403)
-- `POST /api/bookings/{id}/cancel`
-- `POST /api/bookings/{id}/status` — employee/admin
-- `GET /api/admin/resources`, `GET /api/admin/users`
-- `GET /api/reports/bookings?from=&to=` — SQL-агрегация → CSV
+- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
+- `GET /api/resources/{resource_id}`
+- `POST /api/bookings`, `POST /api/bookings/{booking_id}/status`
+- `GET /api/reports/...`
 
 ## 8. Экраны (React)
 
@@ -80,11 +72,11 @@ Auth → Каталог (поиск/фильтры/пагинация, карт�
 
 ## 9. Отчёт
 
-SQL-агрегация через JOIN, условия периода — в `ON`, параметры — через подстановку (без SQL-инъекции), даты в одном часовом поясе, индекс по `resource_id, start_at`.
+Агрегация MongoDB (group), параметры периода, даты в одном часовом поясе.
 
 ## 10. Тесты — минимум 15 backend
 
-Права доступа, переходы статусов, особое правило (hold), конкурентное бронирование (10 параллельных запросов → 1×201, 9×409, 1 запись).
+Auth, права доступа, переходы статусов, особое правило (hold), конкурентное бронирование (10 параллельных запросов → 1 бронь).
 
 ## 11. Demo data — одна команда
 
