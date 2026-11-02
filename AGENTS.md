@@ -2,13 +2,13 @@
 
 ## Проект
 Финальный проект СРС «AI Driven Development» — вариант №3 «Мероприятия».
-Веб-приложение с бронированием мероприятий в зале (React + Django REST + MySQL).
+Веб-приложение с бронированием мероприятий в зале (React + FastAPI + MongoDB).
 
 ## Стек
-- Backend: Django + Django REST Framework
+- Backend: FastAPI (REST API)
 - Frontend: React
-- База: MySQL
-- Auth: JWT (SimpleJWT, access 15 мин / refresh 7 дней, blacklist)
+- База: MongoDB (Motor / PyMongo)
+- Auth: JWT (python-jose HS256, bcrypt, blacklist в коллекции refresh_tokens)
 
 ## Документация проекта
 - `docs/SPEC.md` — полное техническое задание/спецификация (обязательно читать перед задачами)
