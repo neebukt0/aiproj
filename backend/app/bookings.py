@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +14,11 @@ resources_col = db.resources
 status_logs_col = db.status_logs
 
 ACTIVE_STATUSES = ('created', 'confirmed')
+VALID_TRANSITIONS = {
+    'created': {'confirmed', 'cancelled'},
+    'confirmed': {'completed', 'cancelled'},
+}
+TERMINAL_STATUSES = ('completed', 'cancelled')
 
 
 def _to_booking_out(doc) -> schemas.BookingOut:
@@ -20,7 +26,7 @@ def _to_booking_out(doc) -> schemas.BookingOut:
         id=str(doc['_id']),
         user_id=str(doc['user_id']),
         resource_id=str(doc['resource_id']),
-        status=doc.get('status', 'created'),
+        status=doc.get('status') or 'created',
         start_at=doc['start_at'],
         end_at=doc['end_at'],
         held_until=doc['held_until'],
@@ -29,7 +35,7 @@ def _to_booking_out(doc) -> schemas.BookingOut:
     )
 
 
-@router.post('/', response_model=schemas.BookingOut)
+@router.post('', response_model=schemas.BookingOut)
 async def create_booking(
     payload: schemas.BookingIn,
     user: dict = Depends(get_current_user),
@@ -38,6 +44,9 @@ async def create_booking(
     resource = await resources_col.find_one({'_id': resource_id})
     if resource is None:
         raise HTTPException(status_code=404, detail='Resource not found')
+
+    if payload.end_at <= payload.start_at:
+        raise HTTPException(status_code=400, detail='end_at must be after start_at')
 
     now = datetime.now(timezone.utc)
     conflict = await bookings_col.find_one({
@@ -66,19 +75,58 @@ async def create_booking(
     return _to_booking_out(booking_doc)
 
 
+@router.get('/mine', response_model=List[schemas.BookingOut])
+async def list_my_bookings(user: dict = Depends(get_current_user)):
+    cursor = bookings_col.find({'user_id': str(user['_id'])}).sort('start_at', 1)
+    bookings = []
+    async for doc in cursor:
+        bookings.append(_to_booking_out(doc))
+    return bookings
+
+
 @router.post('/{booking_id}/status')
-async def change_status(booking_id: str, status_value: str, user: dict = Depends(get_current_user)):
+async def change_status(
+    booking_id: str,
+    payload: schemas.BookingStatusRequest,
+    user: dict = Depends(get_current_user),
+):
     booking = await bookings_col.find_one({'_id': booking_id})
     if booking is None:
         raise HTTPException(status_code=404, detail='Booking not found')
-    booking['status'] = status_value
-    booking['updated_at'] = datetime.now(timezone.utc)
-    await bookings_col.replace_one({'_id': booking_id}, booking)
+
+    from_status = booking.get('status') or 'created'
+    to_status = payload.status
+
+    allowed = VALID_TRANSITIONS.get(from_status, set())
+    if to_status not in allowed:
+        raise HTTPException(status_code=409, detail='Invalid status transition')
+
+    owner_id = str(booking.get('user_id'))
+    is_owner = owner_id == str(user['_id'])
+    is_staff = user.get('role') in ('employee', 'admin')
+
+    if to_status == 'cancelled':
+        if not (is_owner or is_staff):
+            raise HTTPException(status_code=403, detail='Not allowed')
+    elif to_status in ('confirmed', 'completed') and not is_staff:
+        raise HTTPException(status_code=403, detail='Not allowed')
+
+    now = datetime.now(timezone.utc)
+    updated = dict(booking)
+    updated['status'] = to_status
+    updated['updated_at'] = now
+    if to_status == 'confirmed':
+        updated['confirmed_at'] = now
+        updated['confirmed_by'] = str(user['_id'])
+    if to_status == 'cancelled':
+        updated['cancelled_at'] = now
+        updated['cancel_reason'] = 'cancelled'
+    await bookings_col.replace_one({'_id': booking_id}, updated)
     await status_logs_col.insert_one({
         'booking_id': booking_id,
-        'from_status': booking.get('from_status'),
-        'to_status': status_value,
+        'from_status': from_status,
+        'to_status': to_status,
         'changed_by': str(user['_id']),
-        'changed_at': datetime.now(timezone.utc),
+        'changed_at': now,
     })
-    return {'ok': True}
+    return {'ok': True, 'status': to_status}

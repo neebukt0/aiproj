@@ -49,10 +49,22 @@ class ResourceOut(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+class ResourceCreate(BaseModel):
+    name: str
+    resource_type: str = 'private_room'
+    capacity: int = 1
+    image: Optional[str] = None
+    description: Optional[str] = None
+
+
 class BookingIn(BaseModel):
     resource_id: str
     start_at: datetime
     end_at: datetime
+
+
+class BookingStatusRequest(BaseModel):
+    status: str
 
 
 class BookingOut(BaseModel):

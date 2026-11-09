@@ -76,7 +76,7 @@ async def register(payload: schemas.UserCreate):
     refresh = str(uuid4())
     await refresh_col.insert_one({
         '_id': refresh,
-        'jti': str(uuid4()),
+        'jti': refresh,
         'user_id': user_id,
         'revoked': False,
         'created_at': now,
@@ -88,13 +88,13 @@ async def register(payload: schemas.UserCreate):
 @router.post('/login', response_model=schemas.TokenPair)
 async def login(payload: schemas.LoginRequest):
     user = await users_col.find_one({'email': payload.email})
-    if user is None or not await verify_password(payload.password, user['password_hash']):
+    if user is None or not verify_password(payload.password, user['password_hash']):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
     access = create_access_token(str(user['_id']), user['role'])
     refresh = str(uuid4())
     await refresh_col.insert_one({
         '_id': refresh,
-        'jti': str(uuid4()),
+        'jti': refresh,
         'user_id': str(user['_id']),
         'revoked': False,
         'created_at': datetime.now(timezone.utc),
