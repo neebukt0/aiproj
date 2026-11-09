@@ -1,0 +1,31 @@
+Сессия: 2026-11-09 17:00 (неделя 3 — фронтенд, отчёт, документация)
+
+Пользователь: продолжи
+
+Контекст: завершаем приёмку по PLAN.md. Осталось:
+  - Фронтенд: экраны Auth / Каталог / Бронирование / Мои брони / Панели / Отчёт / Журнал
+  - Backend: отчёт (агрегация MongoDB, CSV экспорт)
+  - Документация: AI_LOG.md, AI_REVIEW.md, README, docs/prompts/
+
+Действия агента:
+1. Создал docs/prompts/ и выписал историю промптов сессий (обзор, неделя 2).
+2. Фронтенд:
+   - src/api/client.js — axios с интерсептором токена и 401-событием
+   - src/contexts/AuthContext.jsx — login/register/logout/me, хранение токенов
+   - src/components/Layout.jsx — шапка, навигация по ролям
+   - src/pages/Login.jsx, Register.jsx
+   - src/pages/Catalog.jsx — список, поиск, фильтр по типу, пагинация
+   - src/pages/Book.jsx — форма бронирования с подсказкой 10 мин
+   - src/pages/MyBookings.jsx — список + отмена client'ом
+3. Backend:
+   - schemas.py: BookingFullOut, StatusLogOut, ReportRequest/Row/Out
+   - bookings.py: GET /api/bookings (панель, date+resource_id, только staff),
+     GET /api/bookings/{id}/logs (только staff)
+   - reports.py: POST /api/reports (агрегация $group),
+     POST /api/reports/csv (StreamingResponse text/csv)
+   - tests: test_staff_panel_lists_bookings, test_client_cannot_access_staff_panel,
+     test_booking_logs_returned
+4. Добавил в conftest.py reports_module.db.
+
+Результат: 22 теста. Осталось: панель администратора (управление пользователями),
+финальная проверка, AI_LOG.md, AI_REVIEW.md, README, коммит.

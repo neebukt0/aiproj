@@ -92,3 +92,16 @@ async def create_resource(
         created_at=doc.get('created_at'),
         updated_at=doc.get('updated_at'),
     )
+
+
+@router.delete('/{resource_id}')
+async def delete_resource(
+    resource_id: str,
+    user: dict = Depends(get_current_user),
+):
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Admin only')
+    result = await resources_col.delete_one({'_id': resource_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail='Resource not found')
+    return {'ok': True}

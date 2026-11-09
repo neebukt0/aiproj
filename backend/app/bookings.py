@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -186,3 +186,69 @@ async def change_status(
         'changed_at': now,
     })
     return {'ok': True, 'status': to_status}
+
+
+@router.get('', response_model=List[schemas.BookingFullOut])
+async def list_bookings(
+    date: Optional[str] = None,
+    resource_id: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Панель сотрудника/администратора: брони на день (по умолчанию — сегодня)."""
+    if user.get('role') not in ('employee', 'admin'):
+        raise HTTPException(status_code=403, detail='Staff only')
+
+    query = {}
+    if date:
+        day_start = datetime.fromisoformat(date)
+        day_end = day_start + timedelta(days=1)
+        query['start_at'] = {'$gte': day_start, '$lt': day_end}
+    if resource_id:
+        query['resource_id'] = resource_id
+
+    cursor = bookings_col.find(query).sort('start_at', 1)
+    out = []
+    async for doc in cursor:
+        out.append(_to_full_out(doc))
+    return out
+
+
+@router.get('/{booking_id}/logs', response_model=List[schemas.StatusLogOut])
+async def booking_logs(
+    booking_id: str,
+    user: dict = Depends(get_current_user),
+):
+    if user.get('role') not in ('employee', 'admin'):
+        raise HTTPException(status_code=403, detail='Staff only')
+    cursor = status_logs_col.find({'booking_id': booking_id}).sort('changed_at', 1)
+    out = []
+    async for doc in cursor:
+        out.append(schemas.StatusLogOut(
+            id=str(doc['_id']),
+            booking_id=doc['booking_id'],
+            from_status=doc.get('from_status'),
+            to_status=doc['to_status'],
+            changed_by=doc.get('changed_by'),
+            changed_at=doc['changed_at'],
+            note=doc.get('note'),
+        ))
+    return out
+
+
+def _to_full_out(doc) -> schemas.BookingFullOut:
+    base = _to_booking_out(doc)
+    return schemas.BookingFullOut(
+        id=base.id,
+        user_id=base.user_id,
+        resource_id=base.resource_id,
+        status=base.status,
+        start_at=base.start_at,
+        end_at=base.end_at,
+        held_until=base.held_until,
+        created_at=base.created_at,
+        updated_at=base.updated_at,
+        confirmed_at=doc.get('confirmed_at'),
+        confirmed_by=doc.get('confirmed_by'),
+        cancelled_at=doc.get('cancelled_at'),
+        cancel_reason=doc.get('cancel_reason'),
+    )

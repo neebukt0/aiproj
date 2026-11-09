@@ -252,31 +252,99 @@ async def test_expired_hold_releases_resource(client):
     assert resp.status_code == 200
 
 
-async def test_expired_hold_releases_resource(client):
-    """После истечения held_until место можно забронировать повторно."""
-    from datetime import datetime, timedelta, timezone
-    from mongomock_motor import AsyncMongoMockClient
-    from app import bookings as bookings_module
-
-    tokens = await register_and_login(client, 'client@example.com')
+async def test_staff_panel_lists_bookings(client):
+    """Сотрудник видит брони на день через панель."""
+    client_token = await register_and_login(client, 'client@example.com')
     employee_token = await register_and_login(client, 'employee@example.com', role='employee')
     resource_id = await create_resource(client, employee_token)
+    await create_booking(client, client_token['access'], resource_id)
 
-    # создадим бронь с прошедшим held_until напрямую в mongomock
-    bookings_col = bookings_module.bookings_col
-    past = datetime.now(timezone.utc) - timedelta(minutes=20)
-    future = datetime.now(timezone.utc) + timedelta(hours=2)
-    await bookings_col.insert_one({
-        '_id': 'expired-hold-booking',
-        'user_id': tokens['user_id'] if 'user_id' in tokens else tokens['access'],
-        'resource_id': resource_id,
-        'status': 'created',
-        'start_at': future,
-        'end_at': future + timedelta(hours=2),
-        'held_until': past,
-        'created_at': past,
-        'updated_at': past,
-    })
+    resp = await client.get(
+        '/api/bookings?date=2026-11-20',
+        headers=bearer(employee_token['access']),
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) >= 1
 
-    resp = await create_booking(client, tokens['access'], resource_id, start_hour=14, end_hour=16)
+
+async def test_client_cannot_access_staff_panel(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    resp = await client.get('/api/bookings', headers=bearer(client_token['access']))
+    assert resp.status_code == 403
+
+
+async def test_booking_logs_returned(client):
+    client_token, employee_token, resource_id, booking_id = await _setup_booking_with_token(client)
+    await client.post(
+        f'/api/bookings/{booking_id}/status',
+        json={'status': 'confirmed'},
+        headers=bearer(employee_token['access']),
+    )
+    resp = await client.get(
+        f'/api/bookings/{booking_id}/logs',
+        headers=bearer(employee_token['access']),
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) >= 1
+
+
+async def test_report_requires_staff(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    resp = await client.post('/api/reports', json={
+        'start_at': '2026-11-01T00:00:00Z',
+        'end_at': '2026-12-01T00:00:00Z',
+    }, headers=bearer(client_token['access']))
+    assert resp.status_code == 403
+
+
+async def test_report_returns_aggregation(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+    await create_booking(client, client_token['access'], resource_id)
+
+    resp = await client.post('/api/reports', json={
+        'start_at': '2026-11-01T00:00:00Z',
+        'end_at': '2026-12-31T00:00:00Z',
+    }, headers=bearer(employee_token['access']))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['period_start'] < data['period_end']
+    assert any(r['resource_id'] == resource_id for r in data['rows'])
+
+
+async def test_report_csv_export(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+    await create_booking(client, client_token['access'], resource_id)
+
+    resp = await client.post('/api/reports/csv', json={
+        'start_at': '2026-11-01T00:00:00Z',
+        'end_at': '2026-12-31T00:00:00Z',
+    }, headers=bearer(employee_token['access']))
+    assert resp.status_code == 200
+    assert 'resource_name' in resp.text
+
+
+async def test_logs_list_requires_staff(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    resp = await client.get('/api/logs', headers=bearer(client_token['access']))
+    assert resp.status_code == 403
+
+
+async def test_admin_can_list_users(client):
+    admin_token = await register_and_login(client, 'admin@example.com', role='admin')
+    resp = await client.get('/api/admin/users', headers=bearer(admin_token['access']))
+    assert resp.status_code == 200
+    assert len(resp.json()) >= 1
+
+
+async def test_admin_can_delete_resource(client):
+    admin_token = await register_and_login(client, 'admin@example.com', role='admin')
+    resource_id = await create_resource(client, admin_token)
+    resp = await client.delete(
+        f'/api/resources/{resource_id}',
+        headers=bearer(admin_token['access']),
+    )
     assert resp.status_code == 200

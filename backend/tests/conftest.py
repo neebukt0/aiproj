@@ -5,6 +5,9 @@ from mongomock_motor import AsyncMongoMockClient
 from app import auth as auth_module
 from app import bookings as bookings_module
 from app import resources as resources_module
+from app import reports as reports_module
+from app import logs as logs_module
+from app import users as users_module
 from app.main import app
 
 
@@ -12,6 +15,9 @@ from app.main import app
 async def mock_db():
     client = AsyncMongoMockClient()
     db = client['booking']
+    reports_module.db = db
+    logs_module.status_logs_col = db.status_logs
+    users_module.users_col = db.users
     auth_module.users_col = db.users
     auth_module.refresh_col = db.refresh_tokens
     bookings_module.bookings_col = db.bookings
