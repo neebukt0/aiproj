@@ -3,6 +3,8 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pymongo import ASCENDING
+
 from app import schemas
 from app.auth import get_current_user
 from app.database import db
@@ -27,6 +29,35 @@ async def get_resource(resource_id: str):
         created_at=resource.get('created_at'),
         updated_at=resource.get('updated_at'),
     )
+
+
+@router.get('', response_model=List[schemas.ResourceOut])
+async def list_resources(
+    skip: int = 0,
+    limit: int = 50,
+    resource_type: Optional[str] = None,
+    search: Optional[str] = None,
+):
+    query = {}
+    if resource_type:
+        query['resource_type'] = resource_type
+    if search:
+        query['name'] = {'$regex': search, '$options': 'i'}
+
+    cursor = resources_col.find(query).sort('name', ASCENDING).skip(skip).limit(limit)
+    out = []
+    async for resource in cursor:
+        out.append(schemas.ResourceOut(
+            id=str(resource['_id']),
+            name=resource['name'],
+            resource_type=resource.get('resource_type', 'private_room'),
+            capacity=resource.get('capacity', 1),
+            image=resource.get('image'),
+            description=resource.get('description'),
+            created_at=resource.get('created_at'),
+            updated_at=resource.get('updated_at'),
+        ))
+    return out
 
 
 @router.post('', response_model=schemas.ResourceOut)

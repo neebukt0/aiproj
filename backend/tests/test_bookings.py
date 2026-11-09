@@ -194,3 +194,89 @@ async def test_client_can_cancel_own_booking(client):
         headers=bearer(client_token['access']),
     )
     assert cancel_resp.status_code == 409
+
+
+async def test_concurrent_booking_only_one_succeeds(client):
+    """10 параллельных запросов на одно место → ровно 1 бронь, остальные 409."""
+    import asyncio
+
+    tokens = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    payload = {
+        'resource_id': resource_id,
+        'start_at': '2026-11-20T10:00:00Z',
+        'end_at': '2026-11-20T12:00:00Z',
+    }
+
+    responses = await asyncio.gather(
+        *[
+            client.post('/api/bookings', json=payload, headers=bearer(tokens['access']))
+            for _ in range(10)
+        ]
+    )
+
+    ok = [r for r in responses if r.status_code == 200]
+    conflicts = [r for r in responses if r.status_code == 409]
+    assert len(ok) == 1
+    assert len(conflicts) == 9
+
+
+async def test_expired_hold_releases_resource(client):
+    """После истечения held_until место можно забронировать повторно."""
+    from datetime import datetime, timedelta, timezone
+
+    from app import bookings as bookings_module
+
+    tokens = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    bookings_col = bookings_module.bookings_col
+    past = datetime.now(timezone.utc) - timedelta(minutes=20)
+    future = datetime.now(timezone.utc) + timedelta(hours=2)
+    await bookings_col.insert_one({
+        '_id': 'expired-hold-booking',
+        'user_id': tokens['access'],
+        'resource_id': resource_id,
+        'status': 'created',
+        'start_at': future,
+        'end_at': future + timedelta(hours=2),
+        'held_until': past,
+        'created_at': past,
+        'updated_at': past,
+    })
+
+    resp = await create_booking(client, tokens['access'], resource_id, start_hour=14, end_hour=16)
+    assert resp.status_code == 200
+
+
+async def test_expired_hold_releases_resource(client):
+    """После истечения held_until место можно забронировать повторно."""
+    from datetime import datetime, timedelta, timezone
+    from mongomock_motor import AsyncMongoMockClient
+    from app import bookings as bookings_module
+
+    tokens = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    # создадим бронь с прошедшим held_until напрямую в mongomock
+    bookings_col = bookings_module.bookings_col
+    past = datetime.now(timezone.utc) - timedelta(minutes=20)
+    future = datetime.now(timezone.utc) + timedelta(hours=2)
+    await bookings_col.insert_one({
+        '_id': 'expired-hold-booking',
+        'user_id': tokens['user_id'] if 'user_id' in tokens else tokens['access'],
+        'resource_id': resource_id,
+        'status': 'created',
+        'start_at': future,
+        'end_at': future + timedelta(hours=2),
+        'held_until': past,
+        'created_at': past,
+        'updated_at': past,
+    })
+
+    resp = await create_booking(client, tokens['access'], resource_id, start_hour=14, end_hour=16)
+    assert resp.status_code == 200
