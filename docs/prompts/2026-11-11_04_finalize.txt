@@ -1,0 +1,33 @@
+# 2026-11-11 — Финализация проекта (подготовка к защите)
+
+Контекст: продолжение работы над финальным проектом СРС "AI Driven Development", вариант №3 "Мероприятия" (React + FastAPI + MongoDB).
+Текущее состояние из сводки: неделя 2/3 реализованы, 28 тестов ранее проходили, нужен seed в Atlas, правки CSS/доков/тестов и финальная проверка.
+
+## Выполненные действия
+
+1. Диагностика
+- Проверены структура репозитория, backend/app, backend/scripts, frontend/src, docs/prompts, существующие тесты и конфиги.
+- Обнаружено: database.py дублировал чтение MONGODB_URL из env вместо settings; seed.py падал на ModuleNotFoundError: No module named 'app' без PYTHONPATH.
+- В docs/ и README уже были файлы с повреждённой кодировкой (артефакт предыдущих сессий) — перезаписаны корректным UTF-8.
+
+2. Исправления кода
+- backend/app/database.py: клиент MongoDB создаётся из settings.MONGODB_URL (config.py уже делает load_dotenv).
+- backend/scripts/seed.py: добавлен sys.path на каталог backend для корректного импорта app.* при запуске как скрипта.
+- frontend/src/index.css: заменён шаблон Vite на стили проекта (layout/topbar, формы, карточки, таблицы, статусы, фильтры, пагинация).
+
+3. Документация
+- README.md: актуальное описание, структура, запуск backend/frontend, тесты, API, особые правила, демо-пользователи.
+- docs/AI_LOG.md: журнал сессий 09.11 и финализации 11.11, перечень изменений и результатов проверок.
+- docs/AI_REVIEW.md: аудит (JWT/роли, пароли/секреты, hold/конкуренция/409, журнал статусов, отчёты, риски/ограничения).
+- Сохранена история промптов (данный файл).
+
+4. Проверки
+- Тесты: `cd backend && pytest -q` с PYTHONPATH=backend → 28 passed in ~72s (mongomock-motor, без реальной MongoDB).
+- Дубликат test_expired_hold_releases_resource не найден (в тестах один экземпляр, grep подтвердил).
+- Seed: запуск `python backend/scripts/seed.py` с MONGODB_URL из backend/.env завершился ошибкой
+  `pymongo.errors.OperationFailure: bad auth : authentication failed (AtlasError 8000)`.
+  Вывод: предоставленные учётные данные Atlas недействительны/без доступа в текущем окружении; seed корректен при валидном URI.
+
+5. Итог
+- Бэкенд/фронтенд/доки приведены к защите-ready состоянию в рамках доступного окружения.
+- Для полного прогона с реальной БД требуется валидный MONGODB_URL (Atlas/local) и повторный запуск seed.

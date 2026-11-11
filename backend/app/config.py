@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class Settings:
     MONGODB_URL = os.environ.get('MONGODB_URL', 'mongodb://localhost:27017')

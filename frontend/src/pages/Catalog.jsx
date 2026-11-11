@@ -16,7 +16,12 @@ export default function Catalog() {
     setError('')
     api
       .get('/api/resources', {
-        params: { skip: page * limit, limit, search: search || undefined, resource_type: type || undefined },
+        params: {
+          skip: page * limit,
+          limit,
+          search: search || undefined,
+          resource_type: type || undefined,
+        },
       })
       .then((res) => setResources(res.data))
       .catch((err) => setError(err.response?.data?.detail || 'Ошибка загрузки'))
@@ -62,7 +67,7 @@ export default function Catalog() {
               <p className="muted">
                 {r.resource_type} · вмещает {r.capacity}
               </p>
-              {r.description && <p className="desc">{r.description}</p>
+              {r.description && <p className="desc">{r.description}</p>}
               <span className="cta">Забронировать</span>
             </div>
           </Link>
