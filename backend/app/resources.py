@@ -2,23 +2,20 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo import ASCENDING
 
 from app import schemas
 from app.auth import get_current_user
 from app.database import db
+from app.utils import as_utc
 
 router = APIRouter(prefix='/api/resources', tags=['Resources'])
 
 resources_col = db.resources
 
 
-@router.get('/{resource_id}', response_model=schemas.ResourceOut)
-async def get_resource(resource_id: str):
-    resource = await resources_col.find_one({'_id': resource_id})
-    if resource is None:
-        raise HTTPException(status_code=404, detail='Resource not found')
+def _to_out(resource) -> schemas.ResourceOut:
     return schemas.ResourceOut(
         id=str(resource['_id']),
         name=resource['name'],
@@ -26,15 +23,23 @@ async def get_resource(resource_id: str):
         capacity=resource.get('capacity', 1),
         image=resource.get('image'),
         description=resource.get('description'),
-        created_at=resource.get('created_at'),
-        updated_at=resource.get('updated_at'),
+        created_at=as_utc(resource.get('created_at')),
+        updated_at=as_utc(resource.get('updated_at')),
     )
+
+
+@router.get('/{resource_id}', response_model=schemas.ResourceOut)
+async def get_resource(resource_id: str):
+    resource = await resources_col.find_one({'_id': resource_id})
+    if resource is None:
+        raise HTTPException(status_code=404, detail='Resource not found')
+    return _to_out(resource)
 
 
 @router.get('', response_model=List[schemas.ResourceOut])
 async def list_resources(
-    skip: int = 0,
-    limit: int = 50,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
     resource_type: Optional[str] = None,
     search: Optional[str] = None,
 ):
@@ -47,16 +52,7 @@ async def list_resources(
     cursor = resources_col.find(query).sort('name', ASCENDING).skip(skip).limit(limit)
     out = []
     async for resource in cursor:
-        out.append(schemas.ResourceOut(
-            id=str(resource['_id']),
-            name=resource['name'],
-            resource_type=resource.get('resource_type', 'private_room'),
-            capacity=resource.get('capacity', 1),
-            image=resource.get('image'),
-            description=resource.get('description'),
-            created_at=resource.get('created_at'),
-            updated_at=resource.get('updated_at'),
-        ))
+        out.append(_to_out(resource))
     return out
 
 
@@ -65,9 +61,8 @@ async def create_resource(
     payload: schemas.ResourceCreate,
     user: dict = Depends(get_current_user),
 ):
-    user_role = user.get('role')
-    if user_role not in ('admin', 'employee'):
-        raise HTTPException(status_code=403, detail='Admin only')
+    if user.get('role') not in ('admin', 'employee'):
+        raise HTTPException(status_code=403, detail='Admin or employee only')
 
     now = datetime.now(timezone.utc)
     resource_id = str(uuid4())
@@ -82,16 +77,7 @@ async def create_resource(
         'updated_at': now,
     }
     await resources_col.insert_one(doc)
-    return schemas.ResourceOut(
-        id=resource_id,
-        name=doc['name'],
-        resource_type=doc['resource_type'],
-        capacity=doc['capacity'],
-        image=doc.get('image'),
-        description=doc.get('description'),
-        created_at=doc.get('created_at'),
-        updated_at=doc.get('updated_at'),
-    )
+    return _to_out(doc)
 
 
 @router.delete('/{resource_id}')

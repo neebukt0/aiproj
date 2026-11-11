@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, EmailStr, Field
+
+Role = Literal['client', 'employee', 'admin']
+BookingStatus = Literal['created', 'confirmed', 'completed', 'cancelled']
 
 
 def new_id() -> str:
@@ -10,9 +13,22 @@ def new_id() -> str:
 
 
 class UserCreate(BaseModel):
+    """Публичная регистрация: роль всегда client (поле role игнорируется)."""
+
     email: EmailStr
-    password: str
-    role: str = 'client'
+    password: str = Field(min_length=8, max_length=72)
+
+
+class UserAdminCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)
+    role: Role = 'client'
+
+
+class UserUpdate(BaseModel):
+    role: Optional[Role] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = Field(default=None, min_length=8, max_length=72)
 
 
 class UserOut(BaseModel):
@@ -50,9 +66,9 @@ class ResourceOut(BaseModel):
 
 
 class ResourceCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=200)
     resource_type: str = 'private_room'
-    capacity: int = 1
+    capacity: int = Field(default=1, ge=1)
     image: Optional[str] = None
     description: Optional[str] = None
 
@@ -61,10 +77,12 @@ class BookingIn(BaseModel):
     resource_id: str
     start_at: datetime
     end_at: datetime
+    participant_ids: List[str] = Field(default_factory=list)
 
 
 class BookingStatusRequest(BaseModel):
     status: str
+    note: Optional[str] = None
 
 
 class BookingOut(BaseModel):
@@ -84,6 +102,13 @@ class BookingFullOut(BookingOut):
     confirmed_by: Optional[str] = None
     cancelled_at: Optional[datetime] = None
     cancel_reason: Optional[str] = None
+
+
+class ParticipantOut(BaseModel):
+    id: str
+    booking_id: str
+    user_id: str
+    created_at: datetime
 
 
 class StatusLogOut(BaseModel):

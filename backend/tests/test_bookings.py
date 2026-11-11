@@ -1,6 +1,6 @@
 import pytest
 
-from tests.conftest import bearer, login_user, register_user
+from tests.conftest import bearer, register_and_login
 
 
 async def create_resource(client, token: dict, name: str = 'Тестовая переговорная') -> str:
@@ -12,12 +12,6 @@ async def create_resource(client, token: dict, name: str = 'Тестовая п�
         'image': None,
     }, headers=bearer(token['access']))
     return resp.json()['id']
-
-
-async def register_and_login(client, email: str, role: str = 'client') -> dict:
-    await register_user(client, email, role=role)
-    resp = await login_user(client, email)
-    return resp.json()
 
 
 async def create_booking(client, token: str, resource_id: str, start_hour: int = 10, end_hour: int = 12) -> dict:
@@ -348,3 +342,133 @@ async def test_admin_can_delete_resource(client):
         headers=bearer(admin_token['access']),
     )
     assert resp.status_code == 200
+
+
+# --- Новые проверки после аудита ---
+
+
+async def test_admin_can_create_staff_user(client):
+    admin_token = await register_and_login(client, 'admin@example.com', role='admin')
+    resp = await client.post('/api/admin/users', json={
+        'email': 'new-employee@example.com',
+        'password': 'EmpPass123!',
+        'role': 'employee',
+    }, headers=bearer(admin_token['access']))
+    assert resp.status_code == 200
+    assert resp.json()['role'] == 'employee'
+
+    login = await client.post('/api/auth/login', json={
+        'email': 'new-employee@example.com',
+        'password': 'EmpPass123!',
+    })
+    assert login.status_code == 200
+
+
+async def test_client_cannot_create_staff_user(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    resp = await client.post('/api/admin/users', json={
+        'email': 'fake-admin@example.com',
+        'password': 'AdminPass123!',
+        'role': 'admin',
+    }, headers=bearer(client_token['access']))
+    assert resp.status_code == 403
+
+
+async def test_booking_participants_roundtrip(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    participants = await client.get('/api/admin/users', headers=bearer(employee_token['access']))
+    assert participants.status_code == 403
+
+    me = await client.get('/api/auth/me', headers=bearer(employee_token['access']))
+    employee_id = me.json()['id']
+
+    resp = await client.post('/api/bookings', json={
+        'resource_id': resource_id,
+        'start_at': '2026-11-20T10:00:00Z',
+        'end_at': '2026-11-20T12:00:00Z',
+        'participant_ids': [employee_id],
+    }, headers=bearer(client_token['access']))
+    assert resp.status_code == 200
+    booking_id = resp.json()['id']
+
+    listed = await client.get(
+        f'/api/bookings/{booking_id}/participants',
+        headers=bearer(client_token['access']),
+    )
+    assert listed.status_code == 200
+    assert [p['user_id'] for p in listed.json()] == [employee_id]
+
+
+async def test_booking_participants_hidden_from_strangers(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    stranger_token = await register_and_login(client, 'stranger@example.com')
+    resource_id = await create_resource(client, employee_token)
+    booking = await create_booking(client, client_token['access'], resource_id)
+    booking_id = booking.json()['id']
+
+    resp = await client.get(
+        f'/api/bookings/{booking_id}/participants',
+        headers=bearer(stranger_token['access']),
+    )
+    assert resp.status_code == 403
+
+
+async def test_booking_rejects_end_before_start(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    resp = await client.post('/api/bookings', json={
+        'resource_id': resource_id,
+        'start_at': '2026-11-20T12:00:00Z',
+        'end_at': '2026-11-20T10:00:00Z',
+    }, headers=bearer(client_token['access']))
+    assert resp.status_code == 400
+
+
+async def test_booking_rejects_unknown_participant(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    resp = await client.post('/api/bookings', json={
+        'resource_id': resource_id,
+        'start_at': '2026-11-20T10:00:00Z',
+        'end_at': '2026-11-20T12:00:00Z',
+        'participant_ids': ['00000000-0000-0000-0000-000000000000'],
+    }, headers=bearer(client_token['access']))
+    assert resp.status_code == 400
+
+
+async def test_concurrent_confirm_only_one_succeeds(client):
+    """Два параллельных подтверждения: одно 200, второе 409."""
+    import asyncio
+
+    client_token, employee_token, resource_id, booking_id = await _setup_booking_with_token(client)
+
+    responses = await asyncio.gather(
+        *[
+            client.post(
+                f'/api/bookings/{booking_id}/status',
+                json={'status': 'confirmed'},
+                headers=bearer(employee_token['access']),
+            )
+            for _ in range(2)
+        ]
+    )
+    codes = sorted(r.status_code for r in responses)
+    assert codes == [200, 409]
+
+
+async def test_report_rejects_inverted_period(client):
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resp = await client.post('/api/reports', json={
+        'start_at': '2026-12-01T00:00:00Z',
+        'end_at': '2026-11-01T00:00:00Z',
+    }, headers=bearer(employee_token['access']))
+    assert resp.status_code == 400
+
