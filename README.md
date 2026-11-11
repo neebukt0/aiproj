@@ -14,7 +14,7 @@
 backend/
   app/                 # auth, bookings, resources, reports, logs, users, schemas, config, database, main
   scripts/seed.py      # demo-данные
-  tests/               # pytest (28 тестов)
+  tests/               # pytest (42 теста)
 frontend/
   src/api/contexts/components/pages
 docs/
@@ -49,11 +49,11 @@ pytest -q
 Тесты используют `mongomock-motor` и не требуют запущенной MongoDB.
 
 ## API (основное)
-- Auth: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
+- Auth: `POST /api/auth/register` (всегда роль `client`), `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
 - Ресурсы: `GET /api/resources?search=&resource_type=&skip=&limit=`, `GET /api/resources/{id}`, `POST /api/resources` (admin/employee), `DELETE /api/resources/{id}` (admin)
-- Бронирования: `POST /api/bookings` (client), `GET /api/bookings/mine`, `GET /api/bookings?date=&resource_id=` (staff), `POST /api/bookings/{id}/status`, `GET /api/bookings/{id}/logs` (staff)
+- Бронирования: `POST /api/bookings` (client, с `participant_ids`), `GET /api/bookings/mine`, `GET /api/bookings?date=&resource_id=` (staff), `POST /api/bookings/{id}/status`, `GET /api/bookings/{id}/logs` (staff), `GET /api/bookings/{id}/participants` (владелец или staff)
 - Отчёты/журнал: `POST /api/reports`, `POST /api/reports/csv` (staff), `GET /api/logs` (staff)
-- Админ: `GET/PATCH/DELETE /api/admin/users` (admin)
+- Админ: `GET/POST /api/admin/users`, `PATCH/DELETE /api/admin/users/{id}` (admin)
 - `GET /health`
 
 ## Особые правила (SPEC)
@@ -66,3 +66,6 @@ pytest -q
 - `client@example.com` / `ClientPass123!`
 - `employee@example.com` / `EmpPass123!`
 - `admin@example.com` / `AdminPass123!`
+
+Публичная регистрация создаёт только клиентов. Сотрудников и администраторов
+создаёт администратор через `POST /api/admin/users` (или seed).

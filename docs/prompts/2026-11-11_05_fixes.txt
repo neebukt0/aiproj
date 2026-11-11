@@ -1,0 +1,87 @@
+# 2026-11-11 — Исправление недочётов после аудита
+
+## Промпт пользователя
+> реши все недочоты и запиши историю пронтов
+
+## Контекст
+Финальный проект СРС «AI Driven Development», вариант №3 «Мероприятия»
+(React + FastAPI + MongoDB). Перед сессией проведён аудит кода, тестов и запуска:
+найдены блокирующие и security-недочёты, которые нужно устранить и зафиксировать
+в документации.
+
+## Найденные проблемы (до исправлений)
+1. `backend/requirements.txt` не содержал `email-validator`, `python-jose`,
+   а `PyJWT` в коде не совпадал со спецификацией/README (`python-jose`).
+2. `python scripts/seed.py` падал с `ModuleNotFoundError: No module named 'app'`.
+3. Публичная регистрация принимала `role`: любой мог зарегистрироваться админом.
+4. Невалидный/просроченный access-токен приводил к 500 вместо 401.
+5. `POST /api/auth/refresh` не проверял срок жизни refresh-токена.
+6. Заблокированный (`is_active=false`) пользователь мог войти и пользоваться API.
+7. Logout не проверял, что refresh-токен принадлежит текущему пользователю.
+8. Не создавались индексы MongoDB (в т.ч. unique по `users.email`).
+9. Коллекция `booking_participants` не использовалась API.
+10. Отсутствовала валидация `end_at > start_at` в бронировании и отчётах.
+11. Смена статуса не была атомарной при конкурентных запросах.
+12. На фронтенде: гонка токена (`setTokenGetter`), отсутствие авто-refresh,
+    неиспользуемый шаблон Vite (`App.jsx`, `App.css`, картинки), лишний выбор
+    роли при регистрации, ручные `Authorization`-заголовки, отсутствие
+    защиты маршрутов, шаблонный `index.html`.
+
+## Выполненные действия
+### Backend
+- `requirements.txt`: зафиксированы протестированные версии, добавлены
+  `email-validator`, `python-jose[cryptography]`, `bcrypt==4.3.0`.
+- `app/auth.py`: переход на `python-jose`; `JWTError` → 401; проверка
+  `is_active`; проверка срока refresh; logout только для своего токена;
+  публичная регистрация всегда создаёт `client`.
+- `app/schemas.py`: `UserCreate` без роли; добавлены `UserAdminCreate`,
+  `UserUpdate`, `participant_ids`, `ParticipantOut`, `note`.
+- `app/users.py`: `POST /api/admin/users` (создание staff только админом),
+  защита от самоблокировки/самоудаления/самопонижения.
+- `app/bookings.py`: UTC-время в ответах, участники мероприятия
+  (`booking_participants` + `GET /{id}/participants`), атомарная смена статуса
+  через `find_one_and_update` с компенсирующим откатом при ошибке журнала,
+  валидация интервала, проверка существования участников.
+- `app/reports.py`: UTC, валидация периода, защита от дублей в агрегации.
+- `app/resources.py`, `app/logs.py`: UTC и валидация параметров.
+- `app/database.py`: `ensure_indexes()`; `app/main.py`: lifespan, индексы,
+  обработчик ошибок MongoDB (503), CORS из настроек.
+- `app/utils.py`: нормализация naive datetime из MongoDB в UTC.
+- `scripts/seed.py`: корректный `sys.path`, 20 ресурсов, участники, журнал,
+  очистка блокировок, создание индексов.
+
+### Tests
+- `tests/conftest.py`: patch всех коллекций, helper `register_and_login()`
+  с повышением роли через БД (публичная регистрация роли не принимает).
+- Добавлены проверки: регистрация игнорирует `role`, невалидный/просроченный
+  access → 401, просроченный refresh → 401, заблокированный пользователь → 403,
+  чужой logout → 403, админ создаёт staff, клиент не может, участники брони,
+  конкурентное подтверждение (1×200 + 1×409), неверный период отчёта → 400,
+  `end_at <= start_at` → 400, неизвестный участник → 400.
+- Итог: `42 passed`.
+
+### Frontend
+- `api/client.js`: токен читается напрямую из `localStorage`, авто-refresh по 401
+  (одна попытка на параллельные запросы), событие `auth:unauthorized`.
+- `contexts/AuthContext.jsx`: убран `setTokenGetter`, обработка unauthorized,
+  `register(email, password)` без роли.
+- `pages/Register.jsx`: удалён выбор роли.
+- `components/ProtectedRoute.jsx`: защита `/my`, `/panel`, `/admin`, `/reports`,
+  `/logs` по ролям.
+- `pages/Book.jsx`: проверка `end > start`, убраны ручные заголовки.
+- `pages/Panel.jsx`, `pages/Reports.jsx`, `pages/Admin.jsx`: ленивые даты,
+  авто-refresh через interceptor, форма создания пользователя, чистка кода.
+- `index.html`: `lang="ru"`, осмысленный title.
+- Удалены шаблонные `App.jsx`, `App.css`, `src/assets/*`, `public/icons.svg`.
+- Проверки: `npm run lint` — только предупреждения, `npm run build` — успешно.
+
+### Документация
+- Обновлены `README.md`, `docs/AI_LOG.md`, `docs/AI_REVIEW.md`.
+- Добавлен данный файл истории промптов.
+
+## Результат
+- Все найденные блокеры и security-недочёты устранены.
+- Backend: 42 теста проходят без реальной MongoDB (mongomock-motor).
+- Frontend: сборка и линт успешны.
+- Секреты в репозиторий не попали: `.env` остаётся в `.gitignore`,
+  в `.env.example` только значения-заглушки.
