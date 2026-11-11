@@ -20,15 +20,13 @@ export default function Layout() {
           <Link to="/">Каталог</Link>
           {user && user.role === 'client' && <Link to="/my">Мои брони</Link>}
           {user && (user.role === 'employee' || user.role === 'admin') && (
-            <Link to="/panel">Панель</Link>
-          )}
-          {user && user.role === 'admin' && (
             <>
-              <Link to="/admin">Админ</Link>
+              <Link to="/panel">Панель</Link>
               <Link to="/reports">Отчёт</Link>
               <Link to="/logs">Журнал</Link>
             </>
           )}
+          {user && user.role === 'admin' && <Link to="/admin">Админ</Link>}
         </nav>
         <div className="user">
           {user ? (

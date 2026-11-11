@@ -3,8 +3,10 @@ import api from '../api/client'
 
 export default function Reports() {
   const [resources, setResources] = useState([])
-  const [start, setStart] = useState(new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10))
-  const [end, setEnd] = useState(new Date().toISOString().slice(0, 10))
+  const [start, setStart] = useState(() =>
+    new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
+  )
+  const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10))
   const [resourceId, setResourceId] = useState('')
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)

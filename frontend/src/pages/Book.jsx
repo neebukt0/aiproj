@@ -26,21 +26,23 @@ export default function Book() {
   async function submit(e) {
     e.preventDefault()
     setError('')
+
     if (!user) {
       navigate('/login')
       return
     }
+    if (!start || !end || new Date(end) <= new Date(start)) {
+      setError('Окончание должно быть позже начала')
+      return
+    }
+
     setSubmitting(true)
     try {
-      const res = await api.post(
-        '/api/bookings',
-        {
-          resource_id: id,
-          start_at: new Date(start).toISOString(),
-          end_at: new Date(end).toISOString(),
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('at')}` } },
-      )
+      await api.post('/api/bookings', {
+        resource_id: id,
+        start_at: new Date(start).toISOString(),
+        end_at: new Date(end).toISOString(),
+      })
       navigate('/my')
     } catch (err) {
       setError(err.response?.data?.detail || 'Ошибка бронирования')

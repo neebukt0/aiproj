@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext'
 export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('client')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
@@ -16,7 +15,7 @@ export default function Register() {
     setError('')
     setLoading(true)
     try {
-      await register(email, password, role)
+      await register(email, password)
       navigate('/')
     } catch (err) {
       setError(err.response?.data?.detail || 'Ошибка регистрации')
@@ -38,16 +37,12 @@ export default function Register() {
         />
         <input
           type="password"
-          placeholder="Пароль"
+          placeholder="Пароль (минимум 8 символов)"
+          minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="client">Клиент</option>
-          <option value="employee">Сотрудник</option>
-          <option value="admin">Администратор</option>
-        </select>
         {error && <p className="error">{error}</p>}
         <button disabled={loading}>Зарегистрироваться</button>
       </form>

@@ -9,7 +9,7 @@ const STATUS_LABEL = {
 }
 
 export default function Panel() {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [resourceId, setResourceId] = useState('')
   const [resources, setResources] = useState([])
   const [bookings, setBookings] = useState([])
@@ -34,11 +34,7 @@ export default function Panel() {
   async function changeStatus(id, status) {
     setActing(id)
     try {
-      await api.post(
-        `/api/bookings/${id}/status`,
-        { status },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('at')}` } },
-      )
+      await api.post(`/api/bookings/${id}/status`, { status })
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, status } : b)),
       )
