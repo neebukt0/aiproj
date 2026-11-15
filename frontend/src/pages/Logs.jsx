@@ -45,28 +45,30 @@ export default function Logs() {
       {filtered.length === 0 ? (
         <div className="state">Записей нет</div>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Бронь</th>
-              <th>От</th>
-              <th>К</th>
-              <th>Кем</th>
-              <th>Когда</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((l) => (
-              <tr key={l.id}>
-                <td>#{l.booking_id.slice(0, 8)}</td>
-                <td>{l.from_status || '—'}</td>
-                <td>{l.to_status}</td>
-                <td>{l.changed_by ? l.changed_by.slice(0, 8) : '—'}</td>
-                <td>{new Date(l.changed_at).toLocaleString()}</td>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Бронь</th>
+                <th>От</th>
+                <th>К</th>
+                <th>Кем</th>
+                <th>Когда</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((l) => (
+                <tr key={l.id}>
+                  <td>#{l.booking_id.slice(0, 8)}</td>
+                  <td>{l.from_status || '—'}</td>
+                  <td>{l.to_status}</td>
+                  <td>{l.changed_by ? l.changed_by.slice(0, 8) : '—'}</td>
+                  <td>{new Date(l.changed_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

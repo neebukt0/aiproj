@@ -87,30 +87,32 @@ export default function Reports() {
       {error && <p className="error">{error}</p>}
       {loading && <div className="state">Загрузка...</div>}
       {report && (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Объект</th>
-              <th>Всего</th>
-              <th>Подтверждено</th>
-              <th>Завершено</th>
-              <th>Отменено</th>
-              <th>Минут</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.rows.map((r) => (
-              <tr key={r.resource_id}>
-                <td>{r.resource_name}</td>
-                <td>{r.total_bookings}</td>
-                <td>{r.confirmed_bookings}</td>
-                <td>{r.completed_bookings}</td>
-                <td>{r.cancelled_bookings}</td>
-                <td>{r.total_minutes}</td>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Объект</th>
+                <th>Всего</th>
+                <th>Подтверждено</th>
+                <th>Завершено</th>
+                <th>Отменено</th>
+                <th>Минут</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {report.rows.map((r) => (
+                <tr key={r.resource_id}>
+                  <td>{r.resource_name}</td>
+                  <td>{r.total_bookings}</td>
+                  <td>{r.confirmed_bookings}</td>
+                  <td>{r.completed_bookings}</td>
+                  <td>{r.cancelled_bookings}</td>
+                  <td>{r.total_minutes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

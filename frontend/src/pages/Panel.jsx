@@ -45,67 +45,94 @@ export default function Panel() {
     }
   }
 
-  if (loading) return <div className="state">Загрузка...</div>
-  if (error) return <div className="state error">{error}</div>
-  if (bookings.length === 0)
-    return <div className="state">На {date} броней нет</div>
-
   return (
     <div>
-      <h2>Панель сотрудника</h2>
-      <div className="filters">
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
-        <select value={resourceId} onChange={(e) => setResourceId(e.target.value)}>
-          <option value="">Все объекты</option>
-          {resources.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
+      <div className="page-head">
+        <div>
+          <span className="eyebrow">Панель сотрудника</span>
+          <h1>Брони на день</h1>
+          <p className="muted">
+            Подтверждайте новые заявки и завершайте состоявшиеся мероприятия.
+          </p>
+        </div>
       </div>
 
-      <div className="list">
-        {bookings.map((b) => (
-          <div className="booking" key={b.id}>
-            <div>
-              <strong>#{b.id.slice(0, 8)}</strong>
-              <p className="muted">
-                {new Date(b.start_at).toLocaleString()} —{' '}
-                {new Date(b.end_at).toLocaleString()}
-              </p>
-              <span className={`status ${b.status}`}>
-                {STATUS_LABEL[b.status] || b.status}
-              </span>
-            </div>
-            <div className="actions">
-              {b.status === 'created' && (
-                <button disabled={acting === b.id} onClick={() => changeStatus(b.id, 'confirmed')}>
-                  Подтвердить
-                </button>
-              )}
-              {b.status === 'confirmed' && (
-                <button disabled={acting === b.id} onClick={() => changeStatus(b.id, 'completed')}>
-                  Завершить
-                </button>
-              )}
-              {(b.status === 'created' || b.status === 'confirmed') && (
-                <button
-                  disabled={acting === b.id}
-                  className="ghost"
-                  onClick={() => changeStatus(b.id, 'cancelled')}
-                >
-                  Отменить
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+      <div className="filters">
+        <label>
+          Дата
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </label>
+        <label>
+          Объект
+          <select value={resourceId} onChange={(e) => setResourceId(e.target.value)}>
+            <option value="">Все объекты</option>
+            {resources.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+
+      {loading && <div className="state">Загрузка броней...</div>}
+      {!loading && error && <div className="state error">{error}</div>}
+      {!loading && !error && bookings.length === 0 && (
+        <div className="state">
+          <span className="empty-icon">📅</span>
+          На {date} броней нет. Выберите другую дату.
+        </div>
+      )}
+
+      {!loading && !error && bookings.length > 0 && (
+        <div className="list">
+          {bookings.map((b) => (
+            <div className="booking" key={b.id}>
+              <div>
+                <strong>#{b.id.slice(0, 8)}</strong>
+                <p className="muted">
+                  {new Date(b.start_at).toLocaleString()} —{' '}
+                  {new Date(b.end_at).toLocaleString()}
+                </p>
+                <span className={`status ${b.status}`}>
+                  {STATUS_LABEL[b.status] || b.status}
+                </span>
+              </div>
+              <div className="actions">
+                {b.status === 'created' && (
+                  <button
+                    disabled={acting === b.id}
+                    onClick={() => changeStatus(b.id, 'confirmed')}
+                  >
+                    Подтвердить
+                  </button>
+                )}
+                {b.status === 'confirmed' && (
+                  <button
+                    disabled={acting === b.id}
+                    onClick={() => changeStatus(b.id, 'completed')}
+                  >
+                    Завершить
+                  </button>
+                )}
+                {(b.status === 'created' || b.status === 'confirmed') && (
+                  <button
+                    disabled={acting === b.id}
+                    className="ghost"
+                    onClick={() => changeStatus(b.id, 'cancelled')}
+                  >
+                    Отменить
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

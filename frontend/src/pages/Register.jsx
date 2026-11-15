@@ -26,29 +26,41 @@ export default function Register() {
 
   return (
     <div className="auth">
-      <h2>Регистрация</h2>
-      <form onSubmit={submit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Пароль (минимум 8 символов)"
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && <p className="error">{error}</p>}
-        <button disabled={loading}>Зарегистрироваться</button>
-      </form>
-      <p>
-        Уже есть аккаунт? <Link to="/login">Войти</Link>
-      </p>
+      <div className="auth-card">
+        <div className="auth-brand">
+          <div className="auth-logo">🎫</div>
+          <div>
+            <strong>Мероприятия</strong>
+            <span>Бронирование залов и площадок</span>
+          </div>
+        </div>
+        <h2>Регистрация</h2>
+        <p className="muted">
+          Создайте аккаунт клиента и бронируйте места на мероприятия.
+        </p>
+        <form onSubmit={submit}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Пароль (минимум 8 символов)"
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          {error && <p className="error">{error}</p>}
+          <button disabled={loading}>Зарегистрироваться</button>
+        </form>
+        <p className="switch">
+          Уже есть аккаунт? <Link to="/login">Войти</Link>
+        </p>
+      </div>
     </div>
   )
 }
