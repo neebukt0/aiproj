@@ -238,7 +238,7 @@ label > input, label > select, label > textarea { margin-top: 0.35rem; }
 
 /* ---------- Карточки и панели ---------- */
 
-.card, .panel, .auth-card, .booking, .book {
+.card, .panel, .auth-card, .booking {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -470,11 +470,58 @@ a.card:hover .cta::after { transform: translateX(4px); }
 .back { display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 1rem; font-weight: 600; color: var(--muted); }
 .back:hover { color: var(--text); }
 .hint { font-size: 0.9rem; margin-top: 0.4rem; }
-.book { max-width: 620px; }
+.book { max-width: 880px; }
 .content > div > h3 { margin-top: 1.6rem; }
 .booking-form { display: flex; flex-direction: column; gap: 0.1rem; }
 .booking-form button[type="submit"] { margin-top: 0.5rem; }
 .booking-form + .hint { margin-top: 1rem; }
+
+/* ---------- Бронирование: форма + занятость ---------- */
+
+.book-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 1.15rem;
+  align-items: start;
+}
+.card-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.35rem;
+  box-shadow: var(--shadow-sm);
+}
+.card-form h3 { margin-bottom: 0.9rem; }
+.availability {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+.availability-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+.availability-head h3 { margin: 0; }
+.availability-head .muted { font-size: 0.85rem; }
+.busy-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.busy-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
 
 /* ---------- Скроллбар ---------- */
 
@@ -492,6 +539,7 @@ a.card:hover .cta::after { transform: translateX(4px); }
   .filters { flex-direction: column; align-items: stretch; }
   .filters input, .filters select { max-width: 100%; }
   .booking { flex-direction: column; align-items: flex-start; }
+  .book-grid { grid-template-columns: 1fr; }
   .table th, .table td { padding: 0.58rem 0.65rem; }
   .auth-card { padding: 1.6rem; }
 }

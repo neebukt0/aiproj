@@ -73,6 +73,18 @@ class ResourceCreate(BaseModel):
     description: Optional[str] = None
 
 
+class BusyInterval(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    status: str
+
+
+class AvailabilityOut(BaseModel):
+    resource_id: str
+    date: str
+    busy: List[BusyInterval]
+
+
 class BookingIn(BaseModel):
     resource_id: str
     start_at: datetime

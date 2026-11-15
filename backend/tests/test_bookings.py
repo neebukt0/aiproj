@@ -472,3 +472,116 @@ async def test_report_rejects_inverted_period(client):
     }, headers=bearer(employee_token['access']))
     assert resp.status_code == 400
 
+
+# --- Проверка после повторного аудита ---
+
+
+async def test_confirm_extends_hold_until_end(client):
+    """Подтверждённая бронь держит место до конца интервала, а не 10 минут."""
+    from app import bookings as bookings_module
+    from app.utils import as_utc
+
+    client_token, employee_token, resource_id, booking_id = await _setup_booking_with_token(client)
+    confirm = await client.post(
+        f'/api/bookings/{booking_id}/status',
+        json={'status': 'confirmed'},
+        headers=bearer(employee_token['access']),
+    )
+    assert confirm.status_code == 200
+
+    doc = await bookings_module.bookings_col.find_one({'_id': booking_id})
+    assert as_utc(doc['held_until']) == as_utc(doc['end_at'])
+
+    # Пересекающаяся бронь по-прежнему должна получать 409.
+    overlap = await create_booking(client, client_token['access'], resource_id, start_hour=11, end_hour=13)
+    assert overlap.status_code == 409
+
+
+async def test_client_can_cancel_confirmed_booking(client):
+    """Клиент может отменить и уже подтверждённую бронь (SPEC: «отменяет»)."""
+    client_token, employee_token, resource_id, booking_id = await _setup_booking_with_token(client)
+    await client.post(
+        f'/api/bookings/{booking_id}/status',
+        json={'status': 'confirmed'},
+        headers=bearer(employee_token['access']),
+    )
+    cancel = await client.post(
+        f'/api/bookings/{booking_id}/status',
+        json={'status': 'cancelled'},
+        headers=bearer(client_token['access']),
+    )
+    assert cancel.status_code == 200
+
+
+async def test_resource_search_handles_special_characters(client):
+    """Символы regex в поиске не должны ломать запрос."""
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    await create_resource(client, employee_token, name='Зал (большой)')
+
+    resp = await client.get('/api/resources', params={'search': '('})
+    assert resp.status_code == 200
+    assert any('(' in item['name'] for item in resp.json())
+
+    bracket = await client.get('/api/resources', params={'search': '['})
+    assert bracket.status_code == 200
+
+
+async def test_availability_lists_busy_intervals(client):
+    client_token = await register_and_login(client, 'client@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+    await create_booking(client, client_token['access'], resource_id)
+
+    resp = await client.get(
+        f'/api/resources/{resource_id}/availability',
+        params={'date': '2026-11-20'},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['date'] == '2026-11-20'
+    assert len(data['busy']) == 1
+    assert data['busy'][0]['status'] == 'created'
+
+
+async def test_availability_ignores_expired_hold(client):
+    from datetime import datetime, timedelta, timezone
+
+    from app import bookings as bookings_module
+
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+    past = datetime.now(timezone.utc) - timedelta(minutes=20)
+    await bookings_module.bookings_col.insert_one({
+        '_id': 'expired-availability-booking',
+        'user_id': 'someone',
+        'resource_id': resource_id,
+        'status': 'created',
+        'start_at': datetime(2026, 11, 20, 10, tzinfo=timezone.utc),
+        'end_at': datetime(2026, 11, 20, 12, tzinfo=timezone.utc),
+        'held_until': past,
+        'created_at': past,
+        'updated_at': past,
+    })
+
+    resp = await client.get(
+        f'/api/resources/{resource_id}/availability',
+        params={'date': '2026-11-20'},
+    )
+    assert resp.status_code == 200
+    assert resp.json()['busy'] == []
+
+
+async def test_availability_validates_resource_and_date(client):
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+
+    missing = await client.get('/api/resources/unknown-id/availability')
+    assert missing.status_code == 404
+
+    bad_date = await client.get(
+        f'/api/resources/{resource_id}/availability',
+        params={'date': '20.11.2026'},
+    )
+    assert bad_date.status_code == 400
+
+

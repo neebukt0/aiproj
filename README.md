@@ -14,7 +14,7 @@
 backend/
   app/                 # auth, bookings, resources, reports, logs, users, schemas, config, database, main
   scripts/seed.py      # demo-данные
-  tests/               # pytest (42 теста)
+  tests/               # pytest (50 тестов)
 frontend/
   src/api/contexts/components/pages
 docs/
@@ -50,15 +50,17 @@ pytest -q
 
 ## API (основное)
 - Auth: `POST /api/auth/register` (всегда роль `client`), `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
-- Ресурсы: `GET /api/resources?search=&resource_type=&skip=&limit=`, `GET /api/resources/{id}`, `POST /api/resources` (admin/employee), `DELETE /api/resources/{id}` (admin)
+- Ресурсы: `GET /api/resources?search=&resource_type=&skip=&limit=`, `GET /api/resources/{id}`, `GET /api/resources/{id}/availability?date=YYYY-MM-DD` (публично: занятые интервалы на день), `POST /api/resources` (admin/employee), `DELETE /api/resources/{id}` (admin)
 - Бронирования: `POST /api/bookings` (client, с `participant_ids`), `GET /api/bookings/mine`, `GET /api/bookings?date=&resource_id=` (staff), `POST /api/bookings/{id}/status`, `GET /api/bookings/{id}/logs` (staff), `GET /api/bookings/{id}/participants` (владелец или staff)
 - Отчёты/журнал: `POST /api/reports`, `POST /api/reports/csv` (staff), `GET /api/logs` (staff)
 - Админ: `GET/POST /api/admin/users`, `PATCH/DELETE /api/admin/users/{id}` (admin)
 - `GET /health`
 
 ## Особые правила (SPEC)
-- Удержание места: `held_until = now + 10 min`.
+- Удержание места: `held_until = now + 10 min` для новой брони.
+- При подтверждении hold продлевается до `end_at`, иначе место освободилось бы через 10 минут.
 - Активные брони: `status in (created, confirmed)` и `held_until > now`.
+- Экран бронирования показывает занятые интервалы выбранного дня (`/availability`).
 - Конфликт интервалов (`start_at < new_end && end_at > new_start`) → 409.
 - Конкурентное бронирование защищено атомарной блокировкой ресурса: из 10 параллельных запросов создаётся ровно 1 бронь.
 
@@ -73,4 +75,4 @@ pytest -q
 ## Проверка и отчёт
 - Word-отчёт: `docs/report/Отчёт_по_проекту_Мероприятия.docx`
 - Скриншоты интерфейса: `docs/report/screens/`
-- Проверки: `pytest -q` → 42 passed; `npm run lint`; `npm run build`.
+- Проверки: `pytest -q` → 50 passed; `npm run lint`; `npm run build`.

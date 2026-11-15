@@ -45,6 +45,9 @@ export default function Panel() {
     }
   }
 
+  const resourceName = (id) =>
+    resources.find((r) => r.id === id)?.name || `Объект #${id.slice(0, 8)}`
+
   return (
     <div>
       <div className="page-head">
@@ -93,8 +96,9 @@ export default function Panel() {
           {bookings.map((b) => (
             <div className="booking" key={b.id}>
               <div>
-                <strong>#{b.id.slice(0, 8)}</strong>
+                <strong>{resourceName(b.resource_id)}</strong>
                 <p className="muted">
+                  #{b.id.slice(0, 8)} ·{' '}
                   {new Date(b.start_at).toLocaleString()} —{' '}
                   {new Date(b.end_at).toLocaleString()}
                 </p>

@@ -27,6 +27,7 @@ async def mock_db():
     bookings_module.participants_col = db.booking_participants
     bookings_module.users_col = db.users
     resources_module.resources_col = db.resources
+    resources_module.bookings_col = db.bookings
     return db
 
 

@@ -15,6 +15,7 @@ export default function MyBookings() {
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
   const [acting, setActing] = useState(null)
 
   useEffect(() => {
@@ -31,13 +32,14 @@ export default function MyBookings() {
 
   async function cancel(id) {
     setActing(id)
+    setActionError('')
     try {
       await api.post(`/api/bookings/${id}/status`, { status: 'cancelled' })
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)),
       )
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка отмены')
+      setActionError(err.response?.data?.detail || 'Ошибка отмены')
     } finally {
       setActing(null)
     }
@@ -61,6 +63,7 @@ export default function MyBookings() {
 
       {loading && <div className="state">Загрузка броней...</div>}
       {!loading && error && <div className="state error">{error}</div>}
+      {!loading && !error && actionError && <p className="error">{actionError}</p>}
       {!loading && !error && bookings.length === 0 && (
         <div className="state">
           <span className="empty-icon">🎟️</span>
@@ -82,7 +85,7 @@ export default function MyBookings() {
                   {STATUS_LABEL[b.status] || b.status}
                 </span>
               </div>
-              {b.status === 'created' && (
+              {(b.status === 'created' || b.status === 'confirmed') && (
                 <button
                   className="ghost danger"
                   disabled={acting === b.id}

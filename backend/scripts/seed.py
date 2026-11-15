@@ -97,9 +97,18 @@ async def main() -> None:
     bookings = []
     for i in range(30):
         rid = resource_ids[i % len(resource_ids)]
-        start = now + timedelta(days=(i // 10) + 1, hours=10 + (i % 5), minutes=0)
+        # Фиксированные часы 10:00–14:00 по UTC на ближайшие 3 календарных дня,
+        # чтобы демо-брони не попадали на ночь и предсказуемо показывались в панели.
+        day = now + timedelta(days=i // 10)
+        start = day.replace(hour=10 + (i % 5), minute=0, second=0, microsecond=0)
         end = start + timedelta(hours=2)
         status_value = statuses[i % 4]
+        # created — свежий 10-минутный hold; confirmed держит место до конца
+        # интервала; терминальные статусы на занятость не влияют.
+        created_at = now if status_value == 'created' else start - timedelta(days=1)
+        held_until = (
+            now + timedelta(minutes=10) if status_value == 'created' else end
+        )
         bookings.append({
             '_id': str(uuid4()),
             'user_id': user_ids['client'],
@@ -107,9 +116,9 @@ async def main() -> None:
             'status': status_value,
             'start_at': start,
             'end_at': end,
-            'held_until': start + timedelta(minutes=10),
-            'created_at': start - timedelta(days=1),
-            'updated_at': start - timedelta(days=1) + timedelta(hours=1),
+            'held_until': held_until,
+            'created_at': created_at,
+            'updated_at': created_at if status_value == 'created' else created_at + timedelta(hours=1),
             'confirmed_at': start + timedelta(hours=1) if status_value in ('confirmed', 'completed') else None,
             'confirmed_by': user_ids['employee'] if status_value in ('confirmed', 'completed') else None,
             'cancelled_at': start + timedelta(hours=2) if status_value == 'cancelled' else None,

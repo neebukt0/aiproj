@@ -210,6 +210,11 @@ async def change_status(
     if to_status == 'confirmed':
         update_fields['confirmed_at'] = now
         update_fields['confirmed_by'] = str(user['_id'])
+        # Подтверждённая бронь держит место до конца интервала, а не 10 минут:
+        # иначе после истечения начального hold слот снова стал бы доступен.
+        end_at = as_utc(booking.get('end_at'))
+        if end_at is not None:
+            update_fields['held_until'] = end_at
     if to_status == 'cancelled':
         update_fields['cancelled_at'] = now
         update_fields['cancel_reason'] = payload.note or 'cancelled'
@@ -234,7 +239,11 @@ async def change_status(
         })
     except Exception:
         # Компенсирующая операция: возвращаем статус, если журнал не записался.
-        rollback = {'$set': {'status': from_status, 'updated_at': booking.get('updated_at')}}
+        rollback = {'$set': {
+            'status': from_status,
+            'updated_at': booking.get('updated_at'),
+            'held_until': booking.get('held_until'),
+        }}
         unset = {}
         if to_status == 'confirmed':
             unset = {'confirmed_at': '', 'confirmed_by': ''}

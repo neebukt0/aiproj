@@ -86,7 +86,13 @@ export default function Reports() {
 
       {error && <p className="error">{error}</p>}
       {loading && <div className="state">Загрузка...</div>}
-      {report && (
+      {!loading && report && report.rows.length === 0 && (
+        <div className="state">
+          <span className="empty-icon">📊</span>
+          За выбранный период данных нет. Измените даты или объект.
+        </div>
+      )}
+      {!loading && report && report.rows.length > 0 && (
         <div className="table-wrap">
           <table className="table">
             <thead>

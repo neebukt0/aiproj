@@ -19,6 +19,7 @@ export default function Catalog() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const limit = 12
 
   useEffect(() => {
@@ -28,17 +29,19 @@ export default function Catalog() {
       .get('/api/resources', {
         params: {
           skip: page * limit,
-          limit,
+          // Запрашиваем на один больше, чтобы точно знать, есть ли следующая страница.
+          limit: limit + 1,
           search: search || undefined,
           resource_type: type || undefined,
         },
       })
-      .then((res) => setResources(res.data))
+      .then((res) => {
+        setHasMore(res.data.length > limit)
+        setResources(res.data.slice(0, limit))
+      })
       .catch((err) => setError(err.response?.data?.detail || 'Ошибка загрузки'))
       .finally(() => setLoading(false))
   }, [page, search, type])
-
-  const hasMore = resources.length === limit
 
   return (
     <div>
