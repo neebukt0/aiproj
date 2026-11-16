@@ -10,8 +10,10 @@ export default function Admin() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    setLoading(true)
     try {
       const [u, r] = await Promise.all([
         api.get('/api/admin/users'),
@@ -21,6 +23,8 @@ export default function Admin() {
       setResources(r.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Ошибка')
+    } finally {
+      setLoading(false)
     }
   }, [])
 
@@ -83,6 +87,7 @@ export default function Admin() {
 
       {error && <p className="error">{error}</p>}
       {notice && <p className="muted">{notice}</p>}
+      {loading && <div className="state">Загрузка...</div>}
 
       <h3>Новый пользователь</h3>
       <form onSubmit={createUser} className="filters">
@@ -115,63 +120,71 @@ export default function Admin() {
       </form>
 
       <h3>Пользователи</h3>
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Роль</th>
-              <th>Активен</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.email}</td>
-                <td>{u.role}</td>
-                <td>{u.is_active ? 'да' : 'нет'}</td>
-                <td>
-                  <button className="ghost" onClick={() => toggleUser(u)}>
-                    {u.is_active ? 'Заблокировать' : 'Активировать'}
-                  </button>{' '}
-                  <button className="ghost danger" onClick={() => deleteUser(u.id)}>
-                    Удалить
-                  </button>
-                </td>
+      {!loading && users.length === 0 ? (
+        <div className="state">Пользователей нет</div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Роль</th>
+                <th>Активен</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.email}</td>
+                  <td>{u.role}</td>
+                  <td>{u.is_active ? 'да' : 'нет'}</td>
+                  <td>
+                    <button className="ghost" onClick={() => toggleUser(u)}>
+                      {u.is_active ? 'Заблокировать' : 'Активировать'}
+                    </button>{' '}
+                    <button className="ghost danger" onClick={() => deleteUser(u.id)}>
+                      Удалить
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <h3>Объекты</h3>
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Название</th>
-              <th>Тип</th>
-              <th>Вместимость</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {resources.map((r) => (
-              <tr key={r.id}>
-                <td>{r.name}</td>
-                <td>{r.resource_type}</td>
-                <td>{r.capacity}</td>
-                <td>
-                  <button className="ghost danger" onClick={() => deleteResource(r.id)}>
-                    Удалить
-                  </button>
-                </td>
+      {!loading && resources.length === 0 ? (
+        <div className="state">Объектов нет</div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Тип</th>
+                <th>Вместимость</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {resources.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.name}</td>
+                  <td>{r.resource_type}</td>
+                  <td>{r.capacity}</td>
+                  <td>
+                    <button className="ghost danger" onClick={() => deleteResource(r.id)}>
+                      Удалить
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

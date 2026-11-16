@@ -17,6 +17,7 @@ export default function MyBookings() {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [acting, setActing] = useState(null)
+  const [filter, setFilter] = useState('actual')
 
   useEffect(() => {
     if (!user) return
@@ -48,6 +49,12 @@ export default function MyBookings() {
   const resourceName = (id) =>
     resources.find((r) => r.id === id)?.name || `Объект #${id.slice(0, 8)}`
 
+  const ACTIVE = ['created', 'confirmed']
+  const filtered =
+    filter === 'actual'
+      ? bookings.filter((b) => ACTIVE.includes(b.status))
+      : bookings.filter((b) => !ACTIVE.includes(b.status))
+
   return (
     <div>
       <div className="page-head">
@@ -72,31 +79,56 @@ export default function MyBookings() {
       )}
 
       {!loading && !error && bookings.length > 0 && (
-        <div className="list">
-          {bookings.map((b) => (
-            <div className="booking" key={b.id}>
-              <div>
-                <strong>{resourceName(b.resource_id)}</strong>
-                <p className="muted">
-                  {new Date(b.start_at).toLocaleString()} —{' '}
-                  {new Date(b.end_at).toLocaleString()}
-                </p>
-                <span className={`status ${b.status}`}>
-                  {STATUS_LABEL[b.status] || b.status}
-                </span>
-              </div>
-              {(b.status === 'created' || b.status === 'confirmed') && (
-                <button
-                  className="ghost danger"
-                  disabled={acting === b.id}
-                  onClick={() => cancel(b.id)}
-                >
-                  Отменить
-                </button>
-              )}
+        <>
+          <div className="filters">
+            <button
+              className={filter === 'actual' ? 'ghost active' : 'ghost'}
+              onClick={() => setFilter('actual')}
+            >
+              Актуальные
+            </button>
+            <button
+              className={filter === 'history' ? 'ghost active' : 'ghost'}
+              onClick={() => setFilter('history')}
+            >
+              История
+            </button>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="state">
+              {filter === 'actual'
+                ? 'Актуальных броней нет.'
+                : 'Истории пока нет.'}
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="list">
+              {filtered.map((b) => (
+                <div className="booking" key={b.id}>
+                  <div>
+                    <strong>{resourceName(b.resource_id)}</strong>
+                    <p className="muted">
+                      {new Date(b.start_at).toLocaleString()} —{' '}
+                      {new Date(b.end_at).toLocaleString()}
+                    </p>
+                    <span className={`status ${b.status}`}>
+                      {STATUS_LABEL[b.status] || b.status}
+                    </span>
+                  </div>
+                  {(b.status === 'created' || b.status === 'confirmed') && (
+                    <button
+                      className="ghost danger"
+                      disabled={acting === b.id}
+                      onClick={() => cancel(b.id)}
+                    >
+                      Отменить
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

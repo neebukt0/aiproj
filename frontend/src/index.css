@@ -213,6 +213,11 @@ button.danger, .danger { background: var(--danger); box-shadow: 0 6px 16px rgba(
 button.danger:hover:not(:disabled) { background: #b91c1c; }
 button.ghost.danger { background: transparent; color: var(--danger); border-color: #fecaca; box-shadow: none; }
 button.ghost.danger:hover:not(:disabled) { background: var(--danger-soft); }
+.ghost.active {
+  background: var(--indigo-soft, #eef2ff);
+  color: var(--indigo, #4f46e5);
+  border-color: var(--indigo, #4f46e5);
+}
 
 /* ---------- Формы ---------- */
 
