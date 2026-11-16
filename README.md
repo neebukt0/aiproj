@@ -14,7 +14,7 @@
 backend/
   app/                 # auth, bookings, resources, reports, logs, users, schemas, config, database, main
   scripts/seed.py      # demo-данные
-  tests/               # pytest (50 тестов)
+  tests/               # pytest (51 тест)
 frontend/
   src/api/contexts/components/pages
 docs/
@@ -51,7 +51,7 @@ pytest -q
 ## API (основное)
 - Auth: `POST /api/auth/register` (всегда роль `client`), `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
 - Ресурсы: `GET /api/resources?search=&resource_type=&skip=&limit=`, `GET /api/resources/{id}`, `GET /api/resources/{id}/availability?date=YYYY-MM-DD` (публично: занятые интервалы на день), `POST /api/resources` (admin/employee), `DELETE /api/resources/{id}` (admin)
-- Бронирования: `POST /api/bookings` (client, с `participant_ids`), `GET /api/bookings/mine`, `GET /api/bookings?date=&resource_id=` (staff), `POST /api/bookings/{id}/status`, `GET /api/bookings/{id}/logs` (staff), `GET /api/bookings/{id}/participants` (владелец или staff)
+- Бронирования: `POST /api/bookings` (client, с `participant_ids`), `GET /api/bookings/mine`, `GET /api/bookings/{id}` (владелец или staff, чужой → 403), `GET /api/bookings?date=&resource_id=` (staff), `POST /api/bookings/{id}/status`, `GET /api/bookings/{id}/logs` (staff), `GET /api/bookings/{id}/participants` (владелец или staff)
 - Отчёты/журнал: `POST /api/reports`, `POST /api/reports/csv` (staff), `GET /api/logs` (staff)
 - Админ: `GET/POST /api/admin/users`, `PATCH/DELETE /api/admin/users/{id}` (admin)
 - `GET /health`
@@ -63,6 +63,14 @@ pytest -q
 - Экран бронирования показывает занятые интервалы выбранного дня (`/availability`).
 - Конфликт интервалов (`start_at < new_end && end_at > new_start`) → 409.
 - Конкурентное бронирование защищено атомарной блокировкой ресурса: из 10 параллельных запросов создаётся ровно 1 бронь.
+- Кабинет клиента разделён на вкладки «Актуальные» и «История».
+
+## Проверка конкуренции на живом сервере
+```bash
+cd backend
+python scripts/concurrency_check.py --resource-id <id> --date 2026-12-20
+# ожидаемый вывод: codes=[200, 409, ...], created=1, conflicts=9, RESULT: OK
+```
 
 ## Демо-пользователи (seed)
 - `client@example.com` / `ClientPass123!`
@@ -75,4 +83,4 @@ pytest -q
 ## Проверка и отчёт
 - Word-отчёт: `docs/report/Отчёт_по_проекту_Мероприятия.docx`
 - Скриншоты интерфейса: `docs/report/screens/`
-- Проверки: `pytest -q` → 50 passed; `npm run lint`; `npm run build`.
+- Проверки: `pytest -q` → 51 passed; `npm run lint`; `npm run build`; `backend/scripts/concurrency_check.py`.
