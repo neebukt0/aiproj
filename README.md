@@ -18,7 +18,7 @@ backend/
 frontend/
   src/api/contexts/components/pages
 docs/
-  SPEC.md, PLAN.md, AI_LOG.md, AI_REVIEW.md, prompts/
+  SPEC.md, PLAN.md, AI_LOG.md, AI_REVIEW.md, prompts/ (12 файлов истории)
 ```
 
 ## Запуск
@@ -81,6 +81,17 @@ python scripts/concurrency_check.py --resource-id <id> --date 2026-12-20
 # ожидаемый вывод: codes=[200, 409, ...], created=1, conflicts=9, RESULT: OK
 ```
 
+## Сквозной smoke-тест
+```bash
+cd backend
+python scripts/seed.py            # демо-данные: 3 пользователя, 20 объектов, 30 броней
+python scripts/smoke_check.py     # 37 проверок на живом сервере
+# ожидаемый вывод: checks: 37 passed, 0 failed, RESULT: OK
+```
+Проверяются все роли, каталог и поиск, занятость, бронь и 409, подтверждение,
+недопустимый переход, отмена, панель, журнал, отчёты и CSV, админ-операции,
+refresh/logout/blacklist. Скрипт работает через HTTP и не обращается к БД напрямую.
+
 ## Роли и права
 
 | Роль | Что может делать | Что запрещено |
@@ -110,4 +121,4 @@ python scripts/refresh_check.py --email client@example.com --password ClientPass
 ## Проверка и отчёт
 - Word-отчёт: `docs/report/Отчёт_по_проекту_Мероприятия.docx`
 - Скриншоты интерфейса: `docs/report/screens/`
-- Проверки: `pytest -q` → 51 passed; `npm run lint`; `npm run build`; `backend/scripts/concurrency_check.py`.
+- Проверки: `pytest -q` → 51 passed; `npm run lint`; `npm run build`; `backend/scripts/concurrency_check.py`; `backend/scripts/smoke_check.py` (37 проверок).
