@@ -178,6 +178,23 @@ async def list_my_bookings(user: dict = Depends(get_current_user)):
     return bookings
 
 
+@router.get('/{booking_id}', response_model=schemas.BookingFullOut)
+async def get_booking(
+    booking_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Карточка брони: владелец или staff, чужой запрос → 403."""
+    booking = await bookings_col.find_one({'_id': booking_id})
+    if booking is None:
+        raise HTTPException(status_code=404, detail='Booking not found')
+
+    is_owner = str(booking.get('user_id')) == str(user['_id'])
+    is_staff = user.get('role') in ('employee', 'admin')
+    if not (is_owner or is_staff):
+        raise HTTPException(status_code=403, detail='Not allowed')
+    return _to_full_out(booking)
+
+
 @router.post('/{booking_id}/status')
 async def change_status(
     booking_id: str,
