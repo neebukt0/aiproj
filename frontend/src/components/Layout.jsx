@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import ThemeToggle from './ThemeToggle.jsx'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -7,7 +8,12 @@ export default function Layout() {
   const isAuth = loc.pathname === '/login' || loc.pathname === '/register'
 
   if (isAuth) {
-    return <Outlet />
+    return (
+      <>
+        <ThemeToggle floating />
+        <Outlet />
+      </>
+    )
   }
 
   return (
@@ -29,6 +35,7 @@ export default function Layout() {
           {user && user.role === 'admin' && <Link to="/admin">Админ</Link>}
         </nav>
         <div className="user">
+          <ThemeToggle />
           {user ? (
             <>
               <span className="role">{user.role}</span>

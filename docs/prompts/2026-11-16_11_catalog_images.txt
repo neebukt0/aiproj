@@ -1,0 +1,22 @@
+# 2026-11-16 — Картинки каталога из внешнего image API
+
+## Запрос пользователя
+> в каталог сделай картинки с какой нибуудьт апишки
+
+## Что сделано
+- Выбран бесплатный image API без ключа и регистрации — Lorem Picsum
+  (`https://picsum.photos/seed/<seed>/640/360`).
+- `backend/scripts/seed.py`: поле `image` теперь заполняется URL с
+  детерминированным seed `meropriyatie-<номер>` — у каждого объекта своя
+  постоянная картинка.
+- `frontend/src/utils/resourceImage.js`: берёт `resource.image`, а если его нет
+  (например, объект создан после seed) — строит Picsum URL по `id` объекта.
+- `frontend/src/components/ResourceMedia.jsx`: картинка с `loading="lazy"` и
+  `onError`-фолбэком на прежнюю иконку типа, если внешний API недоступен.
+- `Catalog.jsx` переведён на `ResourceMedia`; стили `.card-media` не менялись.
+
+## Проверки
+- `pytest -q` → 51 passed.
+- `npm run build` — успешно.
+- На живом mock-сервере: каталог отдаёт `image` с picsum.photos, карточки
+  показывают фотографии; при блокировке внешнего API остаётся иконка.

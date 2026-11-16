@@ -87,7 +87,9 @@ async def main() -> None:
             'name': name,
             'resource_type': rtype,
             'capacity': capacity,
-            'image': None,
+            # Внешний image API без ключа: Lorem Picsum. Seed фиксирован,
+            # поэтому у каждого объекта всегда одна и та же картинка.
+            'image': f'https://picsum.photos/seed/meropriyatie-{i + 1}/640/360',
             'description': f'Объект {i + 1} — {name}',
             'created_at': now,
             'updated_at': now,

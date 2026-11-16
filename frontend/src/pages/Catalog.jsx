@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/client'
+import ResourceMedia from '../components/ResourceMedia.jsx'
 
 const TYPE_LABEL = {
   hall: 'Зал',
@@ -99,13 +100,10 @@ export default function Catalog() {
           <div className="grid">
             {resources.map((r) => (
               <Link to={`/book/${r.id}`} key={r.id} className="card">
-                <div className="card-media">
-                  {r.image ? (
-                    <img src={r.image} alt={r.name} />
-                  ) : (
-                    <span>{TYPE_ICON[r.resource_type] || '🎫'}</span>
-                  )}
-                </div>
+                <ResourceMedia
+                  resource={r}
+                  icon={TYPE_ICON[r.resource_type] || '🎫'}
+                />
                 <div className="card-body">
                   <h3>{r.name}</h3>
                   <p className="muted">
