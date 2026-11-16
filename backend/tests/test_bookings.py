@@ -585,3 +585,31 @@ async def test_availability_validates_resource_and_date(client):
     assert bad_date.status_code == 400
 
 
+async def test_foreign_booking_is_not_accessible(client):
+    """Клиент A не должен получать бронь клиента B по прямому URL."""
+    owner_token = await register_and_login(client, 'owner@example.com')
+    stranger_token = await register_and_login(client, 'stranger@example.com')
+    employee_token = await register_and_login(client, 'employee@example.com', role='employee')
+    resource_id = await create_resource(client, employee_token)
+    booking = await create_booking(client, owner_token['access'], resource_id)
+    booking_id = booking.json()['id']
+
+    resp = await client.get(
+        f'/api/bookings/{booking_id}',
+        headers=bearer(stranger_token['access']),
+    )
+    assert resp.status_code == 403
+
+    # Владелец и staff по-прежнему имеют доступ.
+    owner = await client.get(
+        f'/api/bookings/{booking_id}',
+        headers=bearer(owner_token['access']),
+    )
+    assert owner.status_code == 200
+    staff = await client.get(
+        f'/api/bookings/{booking_id}',
+        headers=bearer(employee_token['access']),
+    )
+    assert staff.status_code == 200
+
+
