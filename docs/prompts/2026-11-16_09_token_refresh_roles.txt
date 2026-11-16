@@ -1,0 +1,22 @@
+# 2026-11-16 — Обновление access-токена и разбор ролей
+
+## Запрос пользователя
+> сделай обновление акцес токена и объясни что делает каждая роль юзера
+
+## Что сделано
+- Проверено, что refresh-поток уже реализован: `POST /api/auth/refresh` принимает
+  refresh из `refresh_tokens`, проверяет `revoked`/`expires_at`, активность
+  пользователя и выдаёт новый access.
+- Найден нюанс: access-токен не содержал `jti`, поэтому при вызове refresh в ту
+  же секунду payload совпадал и возвращался тот же самый токен. Добавлен
+  `jti` в payload — теперь каждый выпущенный access уникален.
+- `test_refresh_and_logout_flow` дополнен: refresh возвращает только `access`,
+  новый токен имеет тот же `sub`/роль, валидный срок, уникальный `jti` и
+  отличается от исходного.
+- Добавлен `backend/scripts/refresh_check.py`: живой сценарий
+  login → защищённый запрос → refresh → новый access → logout → `401`.
+- В README добавлена таблица ролей и команда проверки refresh.
+
+## Проверки
+- `pytest -q tests/test_auth.py` → 12 passed.
+- `scripts/refresh_check.py` на mock backend → `RESULT: OK` (все 11 шагов).

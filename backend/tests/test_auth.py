@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.auth import decode_token
 from tests.conftest import bearer, login_user, register_user
 
 
@@ -49,10 +50,20 @@ async def test_refresh_and_logout_flow(client):
 
     refreshed = await client.post('/api/auth/refresh', json={'refresh': refresh})
     assert refreshed.status_code == 200
+    assert set(refreshed.json()) == {'access'}
     new_access = refreshed.json()['access']
 
     me = await client.get('/api/auth/me', headers=bearer(new_access))
     assert me.status_code == 200
+    assert me.json()['role'] == 'client'
+
+    # Новый access-токен выпущен для того же пользователя и с тем же сроком.
+    payload = decode_token(new_access)
+    assert payload['sub'] == me.json()['id']
+    assert payload['role'] == 'client'
+    assert payload['exp'] > payload['iat']
+    assert payload['jti']
+    assert new_access != login_resp.json()['access']
 
     out = await client.post(
         '/api/auth/logout',

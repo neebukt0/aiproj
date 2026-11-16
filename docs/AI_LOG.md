@@ -113,4 +113,14 @@
   `npm run build` — успешно.
 - История: `docs/prompts/2026-11-16_08_compliance_check.txt`.
 
+### 2026-11-16 — Проверка обновления access-токена
+- Refresh-поток проверен по коду: `POST /api/auth/refresh` выдаёт новый access
+  только по действующему refresh из `refresh_tokens`; после logout → `401`.
+- Тест `test_refresh_and_logout_flow` дополнен: refresh возвращает только
+  `access`, новый токен выпущен для того же `sub`, сохраняет роль и срок.
+- Добавлен `backend/scripts/refresh_check.py` — живой сценарий
+  login → защищённый запрос → refresh → новый access → logout → `401`.
+- В README добавлена таблица ролей и команда проверки refresh.
+- История: `docs/prompts/2026-11-16_09_token_refresh_roles.txt`.
+
 

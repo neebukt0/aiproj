@@ -33,6 +33,7 @@ def create_access_token(user_id: str, role: str) -> str:
     payload = {
         'sub': user_id,
         'role': role,
+        'jti': str(uuid4()),
         'iat': int(now.timestamp()),
         'exp': int((now + timedelta(minutes=settings.JWT_ACCESS_LIFETIME_MINUTES)).timestamp()),
     }
