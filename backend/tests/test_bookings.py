@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from tests.conftest import bearer, register_and_login
@@ -14,9 +16,9 @@ async def create_resource(client, token: dict, name: str = 'Тестовая п�
     return resp.json()['id']
 
 
-async def create_booking(client, token: str, resource_id: str, start_hour: int = 10, end_hour: int = 12) -> dict:
-    start = f'2026-11-20T{start_hour:02d}:00:00Z'
-    end = f'2026-11-20T{end_hour:02d}:00:00Z'
+async def create_booking(client, token: str, resource_id: str, start_hour: int = 10, end_hour: int = 12, date: str = '2026-11-20') -> dict:
+    start = f'{date}T{start_hour:02d}:00:00Z'
+    end = f'{date}T{end_hour:02d}:00:00Z'
     resp = await client.post('/api/bookings', json={
         'resource_id': resource_id,
         'start_at': start,
@@ -99,11 +101,11 @@ async def test_create_booking_nonexistent_resource_returns_404(client):
 # --- Статусы брони ---
 
 
-async def _setup_booking_with_token(client):
+async def _setup_booking_with_token(client, date: str = '2026-11-20'):
     client_token = await register_and_login(client, 'client@example.com')
     employee_token = await register_and_login(client, 'employee@example.com', role='employee')
     resource_id = await create_resource(client, employee_token)
-    resp = await create_booking(client, client_token['access'], resource_id)
+    resp = await create_booking(client, client_token['access'], resource_id, date=date)
     assert resp.status_code == 200
     booking_id = resp.json()['id']
     return client_token, employee_token, resource_id, booking_id
@@ -481,7 +483,10 @@ async def test_confirm_extends_hold_until_end(client):
     from app import bookings as bookings_module
     from app.utils import as_utc
 
-    client_token, employee_token, resource_id, booking_id = await _setup_booking_with_token(client)
+    # Дата должна быть в будущем: иначе held_until = end_at уже прошел
+    # и проверка пересечения ($gt: now) перестаёт что-либо ловить.
+    future_date = (datetime.now(timezone.utc) + timedelta(days=7)).strftime('%Y-%m-%d')
+    client_token, employee_token, resource_id, booking_id = await _setup_booking_with_token(client, date=future_date)
     confirm = await client.post(
         f'/api/bookings/{booking_id}/status',
         json={'status': 'confirmed'},
@@ -493,7 +498,7 @@ async def test_confirm_extends_hold_until_end(client):
     assert as_utc(doc['held_until']) == as_utc(doc['end_at'])
 
     # Пересекающаяся бронь по-прежнему должна получать 409.
-    overlap = await create_booking(client, client_token['access'], resource_id, start_hour=11, end_hour=13)
+    overlap = await create_booking(client, client_token['access'], resource_id, start_hour=11, end_hour=13, date=future_date)
     assert overlap.status_code == 409
 
 

@@ -7,6 +7,7 @@
 ## Стек
 - Backend: FastAPI, Motor (MongoDB), python-jose (JWT HS256), passlib/bcrypt
 - Frontend: React (Vite), React Router, Axios
+- Тесты: pytest, Vitest + Testing Library, Playwright
 - БД: MongoDB
 
 ## Структура
@@ -14,11 +15,15 @@
 backend/
   app/                 # auth, bookings, resources, reports, logs, users, schemas, config, database, main
   scripts/seed.py      # demo-данные
+  scripts/mock_server.py  # FastAPI + mongomock для frontend/E2E
   tests/               # pytest (51 тест)
 frontend/
   src/api/contexts/components/pages
+  src/test/setup.js    # настройка Vitest (jsdom, jest-dom)
+  src/**/*.test.jsx    # 55 компонентных тестов
+  e2e/*.spec.js        # 13 E2E-сценариев Playwright
 docs/
-  SPEC.md, PLAN.md, AI_LOG.md, AI_REVIEW.md, prompts/ (12 файлов истории)
+  SPEC.md, PLAN.md, AI_LOG.md, AI_REVIEW.md, prompts/ (13 файлов истории)
 ```
 
 ## Запуск
@@ -44,9 +49,18 @@ npm run dev
 ## Тесты
 ```bash
 cd backend
-pytest -q
+pytest -q                       # 51 тест, mongomock-motor без MongoDB
+
+cd ../frontend
+npm test                        # 55 компонентных тестов (Vitest + jsdom)
+npm run test:watch              # watch-режим Vitest
+npm run test:e2e                # 13 E2E-сценариев Playwright
 ```
-Тесты используют `mongomock-motor` и не требуют запущенной MongoDB.
+Backend-тесты используют `mongomock-motor` и не требуют запущенной MongoDB.
+Playwright сам поднимает mock backend (`backend/scripts/mock_server.py`) и Vite;
+по умолчанию используется установленный Edge/Chrome, а не скачанный Chromium.
+Для другого браузера задайте `PLAYWRIGHT_CHANNEL=chrome|msedge|chromium`.
+Компонентные тесты мокают `src/api/client.js`, E2E ходят в живой mock API.
 
 ## API (основное)
 - Auth: `POST /api/auth/register` (всегда роль `client`), `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
@@ -121,4 +135,5 @@ python scripts/refresh_check.py --email client@example.com --password ClientPass
 ## Проверка и отчёт
 - Word-отчёт: `docs/report/Отчёт_по_проекту_Мероприятия.docx`
 - Скриншоты интерфейса: `docs/report/screens/`
-- Проверки: `pytest -q` → 51 passed; `npm run lint`; `npm run build`; `backend/scripts/concurrency_check.py`; `backend/scripts/smoke_check.py` (37 проверок).
+- Проверки: `pytest -q` → 51 passed; `npm test` → 55 passed; `npm run test:e2e` → 13 passed; `npm run lint` (0 ошибок); `npm run build`; `backend/scripts/concurrency_check.py`; `backend/scripts/smoke_check.py` (37 проверок).
+- История промптов: 13 файлов в `docs/prompts/` (последний — frontend-тесты и E2E).

@@ -162,4 +162,29 @@
   и актуальное число файлов промптов (12).
 - История: `docs/prompts/2026-11-16_12_smoke_check.txt`.
 
+### 2026-11-22 — Frontend-тесты (Vitest) и E2E (Playwright)
+- Добавлены dev-зависимости Vitest, jsdom, Testing Library, user-event и
+  `@playwright/test`; в `vite.config.js` настроен env jsdom, создан
+  `src/test/setup.js`, добавлены скрипсы `test`, `test:watch`, `test:e2e`.
+- Написаны 9 файлов компонентных тестов на **55 тестов**: утилита картинки,
+  ProtectedRoute, ThemeToggle, AuthContext, Catalog, Login, Book,
+  MyBookings, Admin. Сеть и `useAuth` подменяются через `vi.mock`.
+- Добавлен `backend/scripts/mock_server.py` — воспроизводимый запуск FastAPI
+  на `mongomock` без реальной MongoDB; `playwright.config.js` поднимает его
+  вместе с Vite и использует установленный Edge/Chrome.
+- Написаны 5 E2E-спеков на **13 сценариев**: вход и роли, регистрация,
+  каталог/поиск/фильтры, полный цикл бронирования, панель сотрудника,
+  админка, отчёт и журнал.
+- В браузере вручную проверен вход под `admin@example.com` / `AdminPass123!`:
+  доступны разделы «Панель», «Отчёт», «Журнал», «Админ», таблицы показывают
+  3 пользователей и 20 объектов.
+- Исправлен устаревший backend-тест `test_confirm_extends_hold_until_end`:
+  дата брони была зафиксирована 2026-11-20 и ушла в прошлое, поэтому
+  `held_until = end_at` уже не попадал под проверку пересечения. Теперь тест
+  берёт дату `now + 7 дней`.
+- Проверки: `pytest -q` → **51 passed**; `npm test` → **55 passed**;
+  `npm run test:e2e` → **13 passed**; `npm run lint` → 0 ошибок;
+  `npm run build` → успешно.
+- История: `docs/prompts/2026-11-22_13_frontend_tests_e2e.txt`.
+
 

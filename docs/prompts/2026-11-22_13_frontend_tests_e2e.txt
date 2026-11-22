@@ -1,0 +1,36 @@
+Промпт №13 — 22.11.2026
+Тема: frontend-тесты и E2E
+
+Запрос пользователя:
+«Frontend-тесты и E2E» (выбор из предложенных направлений развития проекта),
+затем «зайди за админа» (проверка входа под ролью admin в браузере).
+
+Выполнено агентом:
+1. Установлены dev-зависимости: vitest, jsdom, @testing-library/react,
+   @testing-library/jest-dom, @testing-library/user-event, @playwright/test.
+2. Настроен Vitest в frontend/vite.config.js (jsdom, setupFiles), добавлены
+   скрипты npm test, test:watch, test:e2e; создан frontend/src/test/setup.js
+   (jest-dom, cleanup, детерминированный matchMedia, очистка localStorage).
+3. Написаны 9 файлов компонентных тестов (55 тестов): resourceImage,
+   ProtectedRoute, ThemeToggle, AuthContext, Catalog, Login, Book,
+   MyBookings, Admin. API и useAuth мокаются через vi.mock.
+4. Добавлен backend/scripts/mock_server.py — воспроизводимый запуск FastAPI
+   на mongomock для frontend и Playwright (без реальной MongoDB).
+5. Настроен frontend/playwright.config.js: два webServer (mock backend + Vite),
+   Edge/Chrome как локальный канал, 1 worker, trace/screenshot при падении.
+6. Написаны 5 E2E-спеков (13 сценариев): auth, catalog, booking, staff,
+   helpers. Сценарии покрывают вход/регистрацию, поиск и фильтры, полный цикл
+   бронирования, панель сотрудника, админку, отчёт и журнал.
+7. Вход в браузере под admin@example.com / AdminPass123! проверен вручную:
+   доступны Панель, Отчёт, Журнал, Админ; таблицы пользователей (3) и объектов (20).
+8. Исправлен устаревший тест test_confirm_extends_hold_until_end: даты брони
+   в нём фиксированы в прошлом (2026-11-20), из-за чего held_until уже истёк
+   и пересечение не находилось. Теперь тест использует дату now + 7 дней.
+9. Обновлены README, AI_LOG, Word-отчёт.
+
+Проверки:
+- npm test → 55 passed (9 файлов)
+- npm run test:e2e → 13 passed
+- npm run lint → 0 ошибок (только прежние предупреждения React)
+- npm run build → успешно
+- pytest -q → 51 passed
